@@ -11,11 +11,19 @@
 #include <unistd.h>
 #include <vector>
 
-#include <boost/asio/deadline_timer.hpp>
+#include <boost/version.hpp>
+#if BOOST_VERSION < 106600
+#include <boost/asio/io_service.hpp>
+#define IOCONTEXT boost::asio::io_service
+#else
 #include <boost/asio/io_context.hpp>
+#define IOCONTEXT boost::asio::io_context
+#endif
+#include <boost/asio/deadline_timer.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
+#include <boost/asio/buffer.hpp>
 
 struct FakeServerSocket;
 struct CurlSocket;
@@ -24,7 +32,7 @@ const bool debugoutput = false;
 
 struct Context
 {
-  Context(boost::asio::io_context& m_io);
+  Context(IOCONTEXT& m_io);
   // returns the number of bytes consumed from data
   size_t setoptions(const uint8_t* data, size_t size);
   // runs curl once, nonblocking. returns what
@@ -91,7 +99,7 @@ struct Context
   int latest_time_of_input = 0;
 
   ~Context();
-  boost::asio::io_context& m_io;
+  IOCONTEXT& m_io;
   CURL* m_easy{};
   struct curl_slist* m_connect_to_list{};
   CURLM* m_multi_handle{};
@@ -110,7 +118,7 @@ struct Context
 
 struct FakeServerSocket
 {
-  explicit FakeServerSocket(boost::asio::io_context& io, Context* parent)
+  explicit FakeServerSocket(IOCONTEXT& io, Context* parent)
     : m_serversocket(io)
     , m_parent(parent)
   {}
@@ -193,7 +201,7 @@ LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     return 0;
   signal(SIGPIPE, SIG_IGN);
 
-  boost::asio::io_context io;
+  IOCONTEXT io;
 
   Context context{ io };
 
@@ -296,7 +304,7 @@ LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
   return 0;
 }
 
-Context::Context(boost::asio::io_context& io)
+Context::Context(IOCONTEXT& io)
   : m_io(io)
   , m_fast_timer(io)
 {
@@ -640,9 +648,10 @@ FakeServerSocket::start_async_read()
   if (debugoutput)
     std::cout << "start async read on " << m_serversocket.native_handle()
               << std::endl;
-  m_serversocket.async_read_some(boost::asio::buffer(m_readbuf),
+  
+  m_serversocket.async_read_some(boost::asio::buffer(m_readbuf.data(),m_readbuf.size()),
                                  [this](auto a, auto b) { on_read(a, b); });
-
+  
   m_is_waiting_for_read = true;
 }
 
