@@ -20,52 +20,71 @@
  *
  ***************************************************************************/
 
-#include <stdlib.h>
+#include "curl_fuzzer.h"
+#include <curl/curl.h>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <curl/curl.h>
-#include "curl_fuzzer.h"
+#include <cassert>
+
+#define FTRY(FUNC)                                                             \
+  {                                                                            \
+    int _func_rc = (FUNC);                                                     \
+    if (_func_rc) {                                                            \
+      rc = _func_rc;                                                           \
+      goto EXIT_LABEL;                                                         \
+    }                                                                          \
+  }
+#define FCHECK(COND)                                                           \
+  {                                                                            \
+    if (!(COND)) {                                                             \
+      rc = 255;                                                                \
+      goto EXIT_LABEL;                                                         \
+    }                                                                          \
+  }
+/* Macros */
+#define FV_PRINTF(FUZZP, ...)                                                  \
+  if ((FUZZP)->verbose) {                                                      \
+    printf(__VA_ARGS__);                                                       \
+  }
 
 /**
  * Fuzzing entry point. This function is passed a buffer containing a test
  * case.  This test case should drive the CURL API into making a request.
  */
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
+extern "C" int
+LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 {
   int rc = 0;
   int tlv_rc;
-  FUZZ_DATA fuzz;
+  FUZZ_DATA fuzz{};
   TLV tlv;
 
   /* Ignore SIGPIPE errors. We'll handle the errors ourselves. */
   signal(SIGPIPE, SIG_IGN);
 
-  /* Have to set all fields to zero before getting to the terminate function */
-  memset(&fuzz, 0, sizeof(FUZZ_DATA));
-
-  if(size < sizeof(TLV_RAW)) {
+  if (size < TLV::TLVHeaderSize) {
     /* Not enough data for a single TLV - don't continue */
     goto EXIT_LABEL;
   }
 
   /* Try to initialize the fuzz data */
-  FTRY(fuzz_initialize_fuzz_data(&fuzz, data, size));
+  FTRY(fuzz.init(data, size));
 
-  for(tlv_rc = fuzz_get_first_tlv(&fuzz, &tlv);
-      tlv_rc == 0;
-      tlv_rc = fuzz_get_next_tlv(&fuzz, &tlv)) {
+  for (tlv_rc = fuzz.fuzz_get_first_tlv(&tlv); tlv_rc == 0;
+       tlv_rc = fuzz.fuzz_get_next_tlv(&tlv)) {
 
     /* Have the TLV in hand. Parse the TLV. */
-    rc = fuzz_parse_tlv(&fuzz, &tlv);
+    rc = fuzz.fuzz_parse_tlv(&tlv);
 
-    if(rc != 0) {
+    if (rc != 0) {
       /* Failed to parse the TLV. Can't continue. */
       goto EXIT_LABEL;
     }
   }
 
-  if(tlv_rc != TLV_RC_NO_MORE_TLVS) {
+  if (tlv_rc != TLV_RC_NO_MORE_TLVS) {
     /* A TLV call failed. Can't continue. */
     goto EXIT_LABEL;
   }
@@ -77,15 +96,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
    * Add in more curl options that have been accumulated over possibly
    * multiple TLVs.
    */
-  if(fuzz.header_list != NULL) {
+  if (fuzz.header_list != NULL) {
     curl_easy_setopt(fuzz.easy, CURLOPT_HTTPHEADER, fuzz.header_list);
   }
 
-  if(fuzz.mail_recipients_list != NULL) {
+  if (fuzz.mail_recipients_list != NULL) {
     curl_easy_setopt(fuzz.easy, CURLOPT_MAIL_RCPT, fuzz.mail_recipients_list);
   }
 
-  if(fuzz.mime != NULL) {
+  if (fuzz.mime != NULL) {
     curl_easy_setopt(fuzz.easy, CURLOPT_MIMEPOST, fuzz.mime);
   }
 
@@ -94,98 +113,36 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
 EXIT_LABEL:
 
-  fuzz_terminate_fuzz_data(&fuzz);
-
   /* This function must always return 0. Non-zero codes are reserved. */
   return 0;
 }
 
 /**
- * Utility function to convert 4 bytes to a u32 predictably.
- */
-uint32_t to_u32(const uint8_t b[4])
-{
-  uint32_t u;
-  u = (b[0] << 24) + (b[1] << 16) + (b[2] << 8) + b[3];
-  return u;
-}
-
-/**
- * Utility function to convert 2 bytes to a u16 predictably.
- */
-uint16_t to_u16(const uint8_t b[2])
-{
-  uint16_t u;
-  u = (b[0] << 8) + b[1];
-  return u;
-}
-
-/**
- * Initialize the local fuzz data structure.
- */
-int fuzz_initialize_fuzz_data(FUZZ_DATA *fuzz,
-                              const uint8_t *data,
-                              size_t data_len)
-{
-  int rc = 0;
-  int ii;
-
-  /* Initialize the fuzz data. */
-  memset(fuzz, 0, sizeof(FUZZ_DATA));
-
-  /* Create an easy handle. This will have all of the settings configured on
-     it. */
-  fuzz->easy = curl_easy_init();
-  FCHECK(fuzz->easy != NULL);
-
-  /* Set up the state parser */
-  fuzz->state.data = data;
-  fuzz->state.data_len = data_len;
-
-  /* Set up the state of the server sockets. */
-  for(ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
-    fuzz->sockman[ii].index = ii;
-    fuzz->sockman[ii].fd_state = FUZZ_SOCK_CLOSED;
-  }
-
-  /* Check for verbose mode. */
-  fuzz->verbose = (getenv("FUZZ_VERBOSE") != NULL);
-
-EXIT_LABEL:
-
-  return rc;
-}
-
-/**
  * Set standard options on the curl easy.
  */
-int fuzz_set_easy_options(FUZZ_DATA *fuzz)
+int
+fuzz_set_easy_options(FUZZ_DATA* fuzz)
 {
   int rc = 0;
   unsigned long allowed_protocols;
 
   /* Set some standard options on the CURL easy handle. We need to override the
      socket function so that we create our own sockets to present to CURL. */
-  FTRY(curl_easy_setopt(fuzz->easy,
-                        CURLOPT_OPENSOCKETFUNCTION,
-                        fuzz_open_socket));
+  FTRY(
+    curl_easy_setopt(fuzz->easy, CURLOPT_OPENSOCKETFUNCTION, fuzz_open_socket));
   FTRY(curl_easy_setopt(fuzz->easy, CURLOPT_OPENSOCKETDATA, fuzz));
 
   /* In case something tries to set a socket option, intercept this. */
-  FTRY(curl_easy_setopt(fuzz->easy,
-                        CURLOPT_SOCKOPTFUNCTION,
-                        fuzz_sockopt_callback));
+  FTRY(curl_easy_setopt(
+    fuzz->easy, CURLOPT_SOCKOPTFUNCTION, fuzz_sockopt_callback));
 
   /* Set the standard read function callback. */
-  FTRY(curl_easy_setopt(fuzz->easy,
-                        CURLOPT_READFUNCTION,
-                        fuzz_read_callback));
+  FTRY(curl_easy_setopt(fuzz->easy, CURLOPT_READFUNCTION, fuzz_read_callback));
   FTRY(curl_easy_setopt(fuzz->easy, CURLOPT_READDATA, fuzz));
 
   /* Set the standard write function callback. */
-  FTRY(curl_easy_setopt(fuzz->easy,
-                        CURLOPT_WRITEFUNCTION,
-                        fuzz_write_callback));
+  FTRY(
+    curl_easy_setopt(fuzz->easy, CURLOPT_WRITEFUNCTION, fuzz_write_callback));
   FTRY(curl_easy_setopt(fuzz->easy, CURLOPT_WRITEDATA, fuzz));
 
   /* Set the cookie jar so cookies are tested. */
@@ -196,7 +153,7 @@ int fuzz_set_easy_options(FUZZ_DATA *fuzz)
   FTRY(curl_easy_setopt(fuzz->easy, CURLOPT_SERVER_RESPONSE_TIMEOUT, 1L));
 
   /* Can enable verbose mode by having the environment variable FUZZ_VERBOSE. */
-  if(fuzz->verbose) {
+  if (fuzz->verbose) {
     FTRY(curl_easy_setopt(fuzz->easy, CURLOPT_VERBOSE, 1L));
   }
 
@@ -213,53 +170,12 @@ EXIT_LABEL:
 }
 
 /**
- * Terminate the fuzz data structure, including freeing any allocated memory.
- */
-void fuzz_terminate_fuzz_data(FUZZ_DATA *fuzz)
-{
-  int ii;
-
-  fuzz_free((void **)&fuzz->postfields);
-
-  for(ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
-    if(fuzz->sockman[ii].fd_state != FUZZ_SOCK_CLOSED) {
-      close(fuzz->sockman[ii].fd);
-      fuzz->sockman[ii].fd_state = FUZZ_SOCK_CLOSED;
-    }
-  }
-
-  if(fuzz->connect_to_list != NULL) {
-    curl_slist_free_all(fuzz->connect_to_list);
-    fuzz->connect_to_list = NULL;
-  }
-
-  if(fuzz->header_list != NULL) {
-    curl_slist_free_all(fuzz->header_list);
-    fuzz->header_list = NULL;
-  }
-
-  if(fuzz->mail_recipients_list != NULL) {
-    curl_slist_free_all(fuzz->mail_recipients_list);
-    fuzz->mail_recipients_list = NULL;
-  }
-
-  if(fuzz->mime != NULL) {
-    curl_mime_free(fuzz->mime);
-    fuzz->mime = NULL;
-  }
-
-  if(fuzz->easy != NULL) {
-    curl_easy_cleanup(fuzz->easy);
-    fuzz->easy = NULL;
-  }
-}
-
-/**
  * If a pointer has been allocated, free that pointer.
  */
-void fuzz_free(void **ptr)
+void
+fuzz_free(void** ptr)
 {
-  if(*ptr != NULL) {
+  if (*ptr != NULL) {
     free(*ptr);
     *ptr = NULL;
   }
@@ -269,46 +185,37 @@ void fuzz_free(void **ptr)
  * Function for handling the fuzz transfer, including sending responses to
  * requests.
  */
-int fuzz_handle_transfer(FUZZ_DATA *fuzz)
+int
+fuzz_handle_transfer(FUZZ_DATA* fuzz)
 {
   int rc = 0;
-  CURLM *multi_handle;
-  int still_running; /* keep number of running handles */
-  CURLMsg *msg; /* for picking up messages with the transfer status */
-  int msgs_left; /* how many messages are left */
+
+  // how many timeouts in a row
   int double_timeout = 0;
-  fd_set fdread;
-  fd_set fdwrite;
-  fd_set fdexcep;
-  struct timeval timeout;
-  int select_rc;
-  CURLMcode mc;
-  int maxfd = -1;
-  long curl_timeo = -1;
-  int ii;
-  FUZZ_SOCKET_MANAGER *sman[FUZZ_NUM_CONNECTIONS];
 
-  for(ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
+  std::array<FUZZ_SOCKET_MANAGER*, FUZZ_NUM_CONNECTIONS> sman{};
+
+  for (int ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
     sman[ii] = &fuzz->sockman[ii];
-
-    /* Set up the starting index for responses. */
-    sman[ii]->response_index = 1;
   }
 
   /* init a multi stack */
-  multi_handle = curl_multi_init();
+  CURLM* multi_handle = curl_multi_init();
 
   /* add the individual transfers */
   curl_multi_add_handle(multi_handle, fuzz->easy);
 
   /* Do an initial process. This might end the transfer immediately. */
+  int still_running{};
   curl_multi_perform(multi_handle, &still_running);
-  FV_PRINTF(fuzz,
-            "FUZZ: Initial perform; still running? %d \n",
-            still_running);
+  FV_PRINTF(fuzz, "FUZZ: Initial perform; still running? %d \n", still_running);
 
-  while(still_running) {
+  while (still_running) {
     /* Reset the sets of file descriptors. */
+    fd_set fdread;
+    fd_set fdwrite;
+    fd_set fdexcep;
+
     FD_ZERO(&fdread);
     FD_ZERO(&fdwrite);
     FD_ZERO(&fdexcep);
@@ -316,64 +223,62 @@ int fuzz_handle_transfer(FUZZ_DATA *fuzz)
     /* Set a timeout of 10ms. This is lower than recommended by the multi guide
        but we're not going to any remote servers, so everything should complete
        very quickly. */
+    struct timeval timeout;
     timeout.tv_sec = 0;
     timeout.tv_usec = 10000;
 
     /* get file descriptors from the transfers */
-    mc = curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
-    if(mc != CURLM_OK) {
+    int maxfd = -1;
+    const CURLMcode mc =
+      curl_multi_fdset(multi_handle, &fdread, &fdwrite, &fdexcep, &maxfd);
+    if (mc != CURLM_OK) {
       fprintf(stderr, "curl_multi_fdset() failed, code %d.\n", mc);
       rc = -1;
       break;
     }
 
-    for(ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
+    for (int ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
       /* Add the socket FD into the readable set if connected. */
-      if(sman[ii]->fd_state == FUZZ_SOCK_OPEN) {
+      if (sman[ii]->fd_state == FUZZ_SOCK_OPEN) {
         FD_SET(sman[ii]->fd, &fdread);
 
         /* Work out the maximum FD between the cURL file descriptors and the
            server FD. */
-        maxfd = FUZZ_MAX(sman[ii]->fd, maxfd);
+        maxfd = std::max(sman[ii]->fd, maxfd);
       }
     }
 
     /* Work out what file descriptors need work. */
     rc = fuzz_select(maxfd + 1, &fdread, &fdwrite, &fdexcep, &timeout);
 
-    if(rc == -1) {
+    if (rc == -1) {
       /* Had an issue while selecting a file descriptor. Let's just exit. */
       FV_PRINTF(fuzz, "FUZZ: select failed, exiting \n");
       break;
-    }
-    else if(rc == 0) {
-      FV_PRINTF(fuzz,
-                "FUZZ: Timed out; double timeout? %d \n",
-                double_timeout);
+    } else if (rc == 0) {
+      FV_PRINTF(fuzz, "FUZZ: Timed out; double timeout? %d \n", double_timeout);
 
       /* Timed out. */
-      if(double_timeout == 1) {
+      if (double_timeout == 1) {
         /* We don't expect multiple timeouts in a row. If there are double
            timeouts then exit. */
         break;
-      }
-      else {
+      } else {
         /* Set the timeout flag for the next time we select(). */
         double_timeout = 1;
       }
-    }
-    else {
+    } else {
       /* There's an active file descriptor. Reset the timeout flag. */
       double_timeout = 0;
     }
 
     /* Check to see if a server file descriptor is readable. If it is,
        then send the next response from the fuzzing data. */
-    for(ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
-      if(sman[ii]->fd_state == FUZZ_SOCK_OPEN &&
-         FD_ISSET(sman[ii]->fd, &fdread)) {
+    for (int ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
+      if (sman[ii]->fd_state == FUZZ_SOCK_OPEN &&
+          FD_ISSET(sman[ii]->fd, &fdread)) {
         rc = fuzz_send_next_response(fuzz, sman[ii]);
-        if(rc != 0) {
+        if (rc != 0) {
           /* Failed to send a response. Break out here. */
           break;
         }
@@ -390,27 +295,26 @@ int fuzz_handle_transfer(FUZZ_DATA *fuzz)
      handle. */
   curl_multi_cleanup(multi_handle);
 
-  return(rc);
+  return (rc);
 }
 
 /**
  * Sends the next fuzzing response to the server file descriptor.
  */
-int fuzz_send_next_response(FUZZ_DATA *fuzz, FUZZ_SOCKET_MANAGER *sman)
+int
+fuzz_send_next_response(FUZZ_DATA* fuzz, FUZZ_SOCKET_MANAGER* sman)
 {
   int rc = 0;
   ssize_t ret_in;
-  ssize_t ret_out;
-  char buffer[8192];
-  const uint8_t *data;
-  size_t data_len;
+
 
   /* Need to read all data sent by the client so the file descriptor becomes
      unreadable. Because the file descriptor is non-blocking we won't just
      hang here. */
   do {
+      char buffer[8192];
     ret_in = read(sman->fd, buffer, sizeof(buffer));
-    if(fuzz->verbose && ret_in > 0) {
+    if (fuzz->verbose && ret_in > 0) {
       printf("FUZZ[%d]: Received %zu bytes \n==>\n", sman->index, ret_in);
       fwrite(buffer, ret_in, 1, stdout);
       printf("\n<==\n");
@@ -418,15 +322,17 @@ int fuzz_send_next_response(FUZZ_DATA *fuzz, FUZZ_SOCKET_MANAGER *sman)
   } while (ret_in > 0);
 
   /* Now send a response to the request that the client just made. */
+  if(sman->hasResponsesLeft()) {
   FV_PRINTF(fuzz,
             "FUZZ[%d]: Sending next response: %d \n",
             sman->index,
             sman->response_index);
-  data = sman->responses[sman->response_index].data;
-  data_len = sman->responses[sman->response_index].data_len;
-
-  if(data != NULL) {
-    if(write(sman->fd, data, data_len) != (ssize_t)data_len) {
+  const auto& resp=sman->getNextResponse();
+  const uint8_t*  data = resp.data;
+  const size_t data_len = resp.data_len;
+    sman->stepToNextResponse();
+  assert (data != NULL);
+    if (write(sman->fd, data, data_len) != (ssize_t)data_len) {
       /* Failed to write the data back to the client. Prevent any further
          testing. */
       rc = -1;
@@ -435,10 +341,7 @@ int fuzz_send_next_response(FUZZ_DATA *fuzz, FUZZ_SOCKET_MANAGER *sman)
 
   /* Work out if there are any more responses. If not, then shut down the
      server. */
-  sman->response_index++;
-
-  if(sman->response_index >= TLV_MAX_NUM_RESPONSES ||
-     sman->responses[sman->response_index].data == NULL) {
+if(!sman->hasResponsesLeft()) {
     FV_PRINTF(fuzz,
               "FUZZ[%d]: Shutting down server socket: %d \n",
               sman->index,
@@ -447,24 +350,27 @@ int fuzz_send_next_response(FUZZ_DATA *fuzz, FUZZ_SOCKET_MANAGER *sman)
     sman->fd_state = FUZZ_SOCK_SHUTDOWN;
   }
 
-  return(rc);
+  return rc;
 }
 
 /**
  * Wrapper for select() so profiling can track it.
  */
-int fuzz_select(int nfds,
-                fd_set *readfds,
-                fd_set *writefds,
-                fd_set *exceptfds,
-                struct timeval *timeout) {
+int
+fuzz_select(int nfds,
+            fd_set* readfds,
+            fd_set* writefds,
+            fd_set* exceptfds,
+            struct timeval* timeout)
+{
   return select(nfds, readfds, writefds, exceptfds, timeout);
 }
 
 /**
  * Set allowed protocols based on the compile options
  */
-int fuzz_set_allowed_protocols(FUZZ_DATA *fuzz)
+int
+fuzz_set_allowed_protocols(FUZZ_DATA* fuzz)
 {
   int rc = 0;
   unsigned long allowed_protocols = 0;
@@ -538,4 +444,119 @@ int fuzz_set_allowed_protocols(FUZZ_DATA *fuzz)
 EXIT_LABEL:
 
   return rc;
+}
+
+FUZZ_DATA::~FUZZ_DATA()
+{
+  int ii;
+  auto fuzz = this;
+  fuzz_free((void**)&this->postfields);
+
+  for (auto& e : this->sockman) {
+    e.close();
+  }
+
+  if (this->connect_to_list != NULL) {
+    curl_slist_free_all(this->connect_to_list);
+    this->connect_to_list = NULL;
+  }
+
+  if (this->header_list != NULL) {
+    curl_slist_free_all(this->header_list);
+    this->header_list = NULL;
+  }
+
+  if (this->mail_recipients_list != NULL) {
+    curl_slist_free_all(this->mail_recipients_list);
+    this->mail_recipients_list = NULL;
+  }
+
+  if (this->mime != NULL) {
+    curl_mime_free(this->mime);
+    this->mime = NULL;
+  }
+
+  if (this->easy != NULL) {
+    curl_easy_cleanup(this->easy);
+    this->easy = NULL;
+  }
+}
+
+int
+FUZZ_DATA::init(const uint8_t* data, size_t data_len)
+{
+  // do not init twice
+  if (this->easy || this->state.data || this->state.data_len)
+    return 1;
+
+  /* Create an easy handle. This will have all of the settings configured on
+     it. */
+  this->easy = curl_easy_init();
+  if (!this->easy)
+    return 1;
+
+  /* Set up the state parser */
+  this->state.data = data;
+  this->state.data_len = data_len;
+
+  /* Set up the state of the server sockets. */
+  for (int ii = 0; ii < FUZZ_NUM_CONNECTIONS; ii++) {
+    this->sockman[ii].index = ii;
+    this->sockman[ii].fd_state = FUZZ_SOCK_CLOSED;
+  }
+
+  /* Check for verbose mode. */
+  this->verbose = (getenv("FUZZ_VERBOSE") != NULL);
+
+  return 0;
+}
+
+#if FUZZER_CUSTOM_MUTATOR
+/*
+ * For whatever reason, the LLVMFuzzerCustomMutator fcn is not picked up unless
+ * it is in this file. no clue why, but this works, redirecting it to another
+ * name. Is it link ordering? cmake? no clue.
+ */
+extern "C" size_t
+curl_LLVMFuzzerCustomMutator(uint8_t* Data,
+                             size_t Size,
+                             size_t MaxSize,
+                             unsigned int Seed);
+extern "C" size_t
+LLVMFuzzerCustomMutator(uint8_t* Data,
+                        size_t Size,
+                        size_t MaxSize,
+                        unsigned int Seed)
+{
+  return curl_LLVMFuzzerCustomMutator(Data, Size, MaxSize, Seed);
+}
+extern "C" size_t
+curl_LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
+                               size_t Size1,
+                               const uint8_t* Data2,
+                               size_t Size2,
+                               uint8_t* Out,
+                               size_t MaxOutSize,
+                               unsigned int Seed);
+extern "C" size_t
+LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
+                          size_t Size1,
+                          const uint8_t* Data2,
+                          size_t Size2,
+                          uint8_t* Out,
+                          size_t MaxOutSize,
+                          unsigned int Seed)
+{
+  return curl_LLVMFuzzerCustomCrossOver(
+    Data1, Size1, Data2, Size2, Out, MaxOutSize, Seed);
+}
+#endif
+
+void
+FUZZ_SOCKET_MANAGER::close()
+{
+  if (fd_state != FUZZ_SOCK_CLOSED) {
+    ::close(fd);
+    fd_state = FUZZ_SOCK_CLOSED;
+  }
 }
