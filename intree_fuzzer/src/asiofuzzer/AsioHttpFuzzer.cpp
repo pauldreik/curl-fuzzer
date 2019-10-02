@@ -1,3 +1,9 @@
+/*
+ * This is an experiment using boost::asio instead of select() based
+ * waiting for curl. It sets curl options from fixed positions in the
+ * fuzz input data. All this is just for experimenting.
+ * by Paul Dreik 2019
+ */
 #include <algorithm>
 #include <array>
 #include <cassert>
