@@ -1,0 +1,4 @@
+machine example.com
+login d
+login !
+login a

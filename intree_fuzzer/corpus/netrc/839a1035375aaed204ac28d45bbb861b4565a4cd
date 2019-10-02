@@ -1,0 +1,13 @@
+machine example.com
+login a
+login x
+login a
+login ,
+login d login c
+login
+m
+login a
+login ,
+login d login m
+login a
+login 
