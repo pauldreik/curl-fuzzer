@@ -1,93 +1,74 @@
-/***************************************************************************
- *                                  _   _ ____  _
- *  Project                     ___| | | |  _ \| |
- *                             / __| | | | |_) | |
- *                            | (__| |_| |  _ <| |___
- *                             \___|\___/|_| \_\_____|
- *
- * Copyright (C) 2017, Max Dymond, <cmeister2@gmail.com>, et al.
- *
- * This software is licensed as described in the file COPYING, which
- * you should have received as part of this distribution. The terms
- * are also available at https://curl.haxx.se/docs/copyright.html.
- *
- * You may opt to use, copy, modify, merge, publish, distribute and/or sell
- * copies of the Software, and permit persons to whom the Software is
- * furnished to do so, under the terms of the COPYING file.
- *
- * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
- * KIND, either express or implied.
- *
- ***************************************************************************/
-
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "testinput.h"
-
-/**
- * Main procedure for standalone fuzzing engine.
- *
- * Reads filenames from the argument array. For each filename, read the file
- * into memory and then call the fuzzing interface with the data.
+/*
+ * For running the fuzz target recursively on files/directories given to main.
+ * Paul Dreik 2019
  */
-int main(int argc, char **argv)
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
+#include <iostream>
+#include <memory>
+
+extern "C" int
+LLVMFuzzerTestOneInput(const uint8_t*, size_t);
+
+namespace bf = boost::filesystem;
+
+static void
+invokeFuzzer(const bf::path& p)
 {
-  int ii;
-  FILE *infile;
-  uint8_t *buffer = NULL;
-  size_t buffer_len;
+  //    LLVMFuzzerTestOneInput(buffer, buffer_len);
 
-  for(ii = 1; ii < argc; ii++) {
-    printf("[%s] ", argv[ii]);
+  static long counter = 0;
 
-    /* Try and open the file. */
-    infile = fopen(argv[ii], "rb");
-    if(infile) {
-      printf("Opened.. ");
+  ++counter;
 
-      /* Get the length of the file. */
-      fseek(infile, 0L, SEEK_END);
-      buffer_len = ftell(infile);
+  std::cout << "Running on file " << counter << ": " << p << '\n';
 
-      /* Reset the file indicator to the beginning of the file. */
-      fseek(infile, 0L, SEEK_SET);
+  const auto filesize = bf::file_size(p);
+  if (0 == filesize) {
+    LLVMFuzzerTestOneInput(nullptr, 0);
+    return;
+  }
+  // slurp the file
+  bf::ifstream file(p);
+  assert(file);
 
-      /* Allocate a buffer for the file contents. */
-      buffer = (uint8_t *)calloc(buffer_len, sizeof(uint8_t));
-      if(buffer) {
-        /* Read all the text from the file into the buffer. */
-        fread(buffer, sizeof(uint8_t), buffer_len, infile);
-        printf("Read %zu bytes, fuzzing.. ", buffer_len);
+  // use heap allocated memory of the exact size, to maximize the
+  // probability of address sanitizer detecting memory errors
+  auto buffer = std::make_unique<uint8_t[]>(filesize);
+  file.read((char*)buffer.get(), filesize);
+  assert(file.gcount() == filesize);
+  LLVMFuzzerTestOneInput(buffer.get(), filesize);
+}
 
-        /* Call the fuzzer with the data. */
-        LLVMFuzzerTestOneInput(buffer, buffer_len);
+// does a recursive walk (following symlinks)
+template<class Action>
+static void
+invoke_on_all_regular_files(bf::path p, Action action)
+{
 
-        printf("complete !!");
-
-        /* Free the buffer as it's no longer needed. */
-        free(buffer);
-        buffer = NULL;
+  if (bf::is_directory(p)) {
+    bf::recursive_directory_iterator iter(p, bf::symlink_option::recurse);
+    bf::recursive_directory_iterator end;
+    for (; iter != end; ++iter) {
+      auto child = iter->path();
+      if (!bf::is_directory(child)) {
+        invoke_on_all_regular_files(child, action);
       }
-      else
-      {
-        fprintf(stderr,
-                "[%s] Failed to allocate %zu bytes \n",
-                argv[ii],
-                buffer_len);
-      }
-
-      /* Close the file as it's no longer needed. */
-      fclose(infile);
-      infile = NULL;
     }
-    else
-    {
-      /* Failed to open the file. Maybe wrong name or wrong permissions? */
-      fprintf(stderr, "[%s] Open failed. \n", argv[ii]);
-    }
+  } else if (bf::is_regular_file(p)) {
+    action(p);
+  } else if (bf::is_symlink(p)) {
+    // dereference the symlink
+    invoke_on_all_regular_files(bf::read_symlink(p), action);
+  }
+  // anything else (chacter devices etc, non-existant stuff) is ignored
+}
 
-    printf("\n");
+int
+main(int argc, char** argv)
+{
+
+  for (int i = 1; i < argc; ++i) {
+    invoke_on_all_regular_files(argv[i], [](auto file) { invokeFuzzer(file); });
   }
 }
