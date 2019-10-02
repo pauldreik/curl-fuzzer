@@ -19,7 +19,9 @@ autoreconf -i
 ./configure --prefix=${INSTALLDIR} \
             --disable-shared \
             --enable-static \
-            --disable-threads
+            --disable-threads \
+            --disable-python-bindings
+
 
 make
 make install
