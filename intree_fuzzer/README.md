@@ -40,7 +40,7 @@ apt build-dep nghttp2-client
 apt build-dep openssl
 apt build-dep zlib
 apt build-dep curl
-apt install libboost-dev cmake clang-7
+apt install libboost-dev libboost-system-dev cmake clang-7 ninja-build
 ```
 
 Then from inside the curl-fuzzer repo (Takes approximately five minutes to build on my machine):
