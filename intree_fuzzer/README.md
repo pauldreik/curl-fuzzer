@@ -69,7 +69,7 @@ tests/curl_fuzzer_http_wcm out/http/ ../../curl-fuzzer/corpora/curl_fuzzer_http
 ```
 cd ~/code/curl/build-fuzz-clang7-asan-ubsan
 mkdir -p out/cookies
-internalfuzzer_fuzz_cookies out/cookies/
+tests/internalfuzzer_fuzz_cookies out/cookies/
 ```
 ## Measuring coverage
 Build with coverage support
