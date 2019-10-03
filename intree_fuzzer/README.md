@@ -26,12 +26,11 @@ Check out curl and curl-fuzzers parallell (or provide a symlink)
 mkdir ~/code/
 cd ~/code/
 git clone https://github.com/pauldreik/curl-fuzzer.git
-cd curl-fuzzer
-git checkout paul/localfuzz_public0
-cd  ~/code/
+git -C curl-fuzzer checkout paul/localfuzz_public0
 git clone https://github.com/pauldreik/curl.git
-cd curl
-git checkout paul/localfuzz_public0
+git -C curl checkout paul/localfuzz_public0
+git clone https://github.com/pauldreik/curl-fuzzer-data.git
+git -C curl-fuzzer-data checkout paul/localfuzz_public0
 ```
 
 Install build dependencies. This shows how to do it on Debian/Ubuntu, which conveniently can download build dependencies. One can probably get by by installing a lot fewer things, skip this step if you like and see if the build passes anyway.
