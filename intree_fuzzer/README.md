@@ -30,10 +30,11 @@ cd curl-fuzzer
 git checkout paul/localfuzz_public0
 cd  ~/code/
 git clone https://github.com/pauldreik/curl.git
+cd curl
 git checkout paul/localfuzz_public0
 ```
 
-Install build dependencies (example shown on Debian/Ubuntu, which conveniently can download build dependencies):
+Install build dependencies. This shows how to do it on Debian/Ubuntu, which conveniently can download build dependencies. One can probably get by by installing a lot fewer things, skip this step if you like and see if the build passes anyway.
 ```
 apt build-dep nghttp2-client
 apt build-dep openssl
@@ -42,7 +43,7 @@ apt build-dep curl
 apt install libboost-dev cmake clang-7
 ```
 
-Then from inside the curl-fuzzer repo:
+Then from inside the curl-fuzzer repo (Takes approximately five minutes to build on my machine):
 ```
 cd ~/code/curl-fuzzer/
 intree_fuzzer/scripts/build.sh
