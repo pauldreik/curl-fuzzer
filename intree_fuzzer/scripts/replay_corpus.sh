@@ -39,7 +39,7 @@ scope=internal
 #scope="internal external"
 
 usage() {
-echo "usage: $me [options]"
+echo "usage: $me [options] [shortname]"
 echo " where options are"
 echo " -n dryrun (print what to do, instead of doing it)"
 echo " -p PURPOSE where PURPOSE is one of coverage or minimize"
@@ -47,6 +47,8 @@ echo "            to select what the replay does."
 echo " -s SCOPE where SCOPE is one or more words of internal external"
 echo "          to set which fuzzers are replayed"
 echo " -c LLVMVERSION which version of llvm to use, default is $LLVMVERSION"
+echo ""
+echo "shortname means only that fuzzer will be run"
 }
 
 while getopts np:s:c: f
@@ -59,9 +61,12 @@ do
       \?|h) usage ;exit 1;;
    esac
 done
+shift $(expr $OPTIND - 1)
 
-
-
+if [ $# -gt 0 ] ; then
+ networkfuzzers=$@
+ internalfuzzers=$@
+fi
 
 
 
@@ -113,7 +118,7 @@ if echo $scope |grep -q "external" ; then
          echo $me: could not find $exe
          exit 1
       fi
-      replaydata=$CORPUSROOT/$nf
+      replaydata=$CURLFUZZDATAROOT/tlv/$nf
       if [ ! -d $replaydata ] ; then
          echo "$me: could not find $replaydata"
          exit 1
