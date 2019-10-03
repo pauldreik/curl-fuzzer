@@ -3,39 +3,67 @@
 # replays the corpus
 #
 
-set -e
+set -eu
+
 me=$(basename $0)
 
 CURLFUZZROOT=$(git -C $(dirname "$0") rev-parse --show-toplevel )
 CURLROOT=$(readlink -f $CURLFUZZROOT/../curl)
+CURLFUZZDATAROOT=$(readlink -f $CURLFUZZROOT/../curl-fuzzer-data)
 
 echo $me: CURLROOT=$CURLROOT
 echo $me: CURLFUZZROOT=$CURLFUZZROOT
+echo $me: CURLFUZZDATAROOT=$CURLFUZZDATAROOT
 
 # assume the fuzzers are here
 BUILDROOT=$PWD
 echo $me: BUILDROOT=$BUILDROOT
 
-#the root of the corpus dir (expecting subdirs matching the individual fuzzers)
-CORPUSROOT=$CURLFUZZROOT/intree_fuzzer/corpus/
-echo $me: CORPUSROOT=$CORPUSROOT
-
 networkfuzzers="all dict file ftp gopher http https imap ldap pop3 rtmp rtsp scp sftp smb smtp tftp"
 
+# This is the internal fuzzers. Get the short name by some text manipulation.
 internalfuzzers=$(ls $BUILDROOT/tests/internalfuzzer_fuzz_* |sort |cut -f3 -d_|xargs echo)
 
-LLVMVERSION="-7"
+#internalfuzzers=netrc
 
-dryrun=echo
+# defaults
+LLVMVERSION="-7"
 dryrun="nice -n 19"
 
 purpose=coverage
 #purpose=replay
-#purpose=minimize
+purpose=minimize
 
 scope=internal
-scope=external
+#scope=external
 #scope="internal external"
+
+usage() {
+echo "usage: $me [options]"
+echo " where options are"
+echo " -n dryrun (print what to do, instead of doing it)"
+echo " -p PURPOSE where PURPOSE is one of coverage or minimize"
+echo "            to select what the replay does."
+echo " -s SCOPE where SCOPE is one or more words of internal external"
+echo "          to set which fuzzers are replayed"
+echo " -c LLVMVERSION which version of llvm to use, default is $LLVMVERSION"
+}
+
+while getopts np:s:c: f
+do
+   case $f in
+      c)  LLVMVERSION=$OPTARG;;
+      n) dryrun=echo;;
+      p) purpose=$OPTARG;;
+      s) scope=$OPTARG;;
+      \?|h) usage ;exit 1;;
+   esac
+done
+
+
+
+
+
 
 # $1 - fuzzer binary
 # $2 - replay data (directory)
@@ -71,6 +99,7 @@ executesingle() {
          $dryrun $exe -merge=1 $replaydata.cmintmp $replaydata $extradata
          $dryrun mv $replaydata $replaydata.old
          $dryrun mv $replaydata.cmintmp $replaydata
+         $dryrun rm -rf $replaydata.old
          ;;
       *)
          echo $me: unknown purpose $purpose
@@ -97,13 +126,14 @@ fi
 
 if echo $scope |grep -q "internal" ; then
    for intf in $internalfuzzers; do
-      echo $me: considering $intf
+      echo "$me: ##############################################################"
+      echo $me: considering internal fuzzer $intf
       exe=$BUILDROOT/tests/internalfuzzer_fuzz_$intf
       if [ ! -x $exe ] ; then
          echo $me: could not find $exe $intf
          exit 1
       fi
-      replaydata=$CORPUSROOT/$intf
+      replaydata=$CURLFUZZDATAROOT/internal/$intf
       if [ ! -d $replaydata ] ; then
          echo "$me: could not find $replaydata, nevermind"
          #exit 1
@@ -127,4 +157,7 @@ case $purpose in
       echo "file://$PWD/here/index.html"
       ;;
 esac
+
+
+echo $me: bye bye
 
