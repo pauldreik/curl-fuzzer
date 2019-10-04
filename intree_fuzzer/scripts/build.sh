@@ -95,11 +95,13 @@ esac
 cppversion=-std=c++1z
 CXXFLAGS="$CXXFLAGS $cppversion -g"
 CFLAGS="$CFLAGS -g"
+CXXFLAGS_DEPS=
 
 case $task in
    fuzz)
       CFLAGS="$CFLAGS -fsanitize=fuzzer-no-link"
       #CXXFLAGS="$CXXFLAGS -fsanitize=fuzzer-no-link"
+      CXXFLAGS_DEPS="-fsanitize=fuzzer-no-link"
       cmakeflags="$commoncmakeflags -DENABLE_COVERAGE=Off -DFUZZING_LINK_MAINRUNNER=Off"
       ;;
    coverage)
@@ -126,11 +128,14 @@ if [ ! -e "$nghttp2install/lib/libnghttp2.a" ]; then
       git clone --branch v1.33.0 --depth 1 https://github.com/nghttp2/nghttp2 $nghttp2src
    fi
    cd $nghttp2src
+   echo $me: env
+   env
    echo $me: running autoreconf
    autoreconf -i
    echo $me: running configure
    ./configure --prefix=$nghttp2install \
-               --disable-shared --enable-static --disable-threads --disable-python-bindings
+               --disable-shared --enable-static --disable-threads --disable-python-bindings \
+              CXXFLAGS="$CXXFLAGS_DEPS"
    make -j4
    make install
 fi
