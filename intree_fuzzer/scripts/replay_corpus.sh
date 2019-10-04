@@ -38,6 +38,8 @@ scope=internal
 #scope=external
 #scope="internal external"
 
+extradata=
+
 usage() {
 echo "usage: $me [options] [shortname]"
 echo " where options are"
@@ -47,14 +49,16 @@ echo "            to select what the replay does."
 echo " -s SCOPE where SCOPE is one or more words of internal external"
 echo "          to set which fuzzers are replayed"
 echo " -c LLVMVERSION which version of llvm to use, default is $LLVMVERSION"
+echo " -e EXTRADATA also use EXTRADATA as a source of corpus"
 echo ""
 echo "shortname means only that fuzzer will be run"
 }
 
-while getopts np:s:c: f
+while getopts ne:p:s:c: f
 do
    case $f in
-      c)  LLVMVERSION=$OPTARG;;
+      c) LLVMVERSION=$OPTARG;;
+      e) extradata=$OPTARG;;
       n) dryrun=echo;;
       p) purpose=$OPTARG;;
       s) scope=$OPTARG;;
