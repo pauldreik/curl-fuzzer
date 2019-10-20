@@ -48,6 +48,7 @@ class BaseType(object):
     TYPE_MAIL_AUTH = 39
     TYPE_HTTP_VERSION = 40
     TYPE_DOH_URL = 41
+    TYPE_PROXY_URL = 42
 
     TYPEMAP = {
         TYPE_URL: "CURLOPT_URL",
@@ -91,6 +92,7 @@ class BaseType(object):
         TYPE_MAIL_AUTH: "CURLOPT_MAIL_AUTH",
         TYPE_HTTP_VERSION: "CURLOPT_HTTP_VERSION",
         TYPE_DOH_URL: "CURLOPT_DOH_URL",
+        TYPE_PROXY_URL: "CURLOPT_PROXY",
     }
 
 
