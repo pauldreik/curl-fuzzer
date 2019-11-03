@@ -91,6 +91,12 @@ case $tcname in
       exit 1
 esac
 
+case $tcname in
+    *-asan-*)
+	export LDFLAGS=-fsanitize=address
+    ;;
+esac
+
 # always set the cpp version and debugging information
 cppversion=-std=c++1z
 CXXFLAGS="$CXXFLAGS $cppversion -g"
