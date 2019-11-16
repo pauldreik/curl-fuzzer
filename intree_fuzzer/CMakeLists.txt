@@ -159,7 +159,13 @@ if(ENABLE_FUZZING)
     ############################################################################
     # Experimental Boost Asio based fuzzer, for experiments.
     set(name asiohttpfuzz)
-    add_executable(${name} ${fuzzroot}/src/asiofuzzer/AsioHttpFuzzer.cpp)
+    add_executable(${name}
+        ${fuzzroot}/src/asiofuzzer/AsioHttpFuzzer.cpp
+        ${fuzzroot}/src/asiofuzzer/Context.h
+        ${fuzzroot}/src/asiofuzzer/Context.cpp
+        ${fuzzroot}/src/asiofuzzer/FakeServerSocket.h
+        ${fuzzroot}/src/asiofuzzer/FakeServerSocket.cc
+        )
     target_link_libraries(${name} PRIVATE libcurl)
     find_package(Boost REQUIRED COMPONENTS system)
     target_link_libraries(${name} PRIVATE Boost::system)
