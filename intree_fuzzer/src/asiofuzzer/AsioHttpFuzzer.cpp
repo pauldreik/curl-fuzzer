@@ -91,11 +91,11 @@ LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
   bool exit_now = false;
 
   // make sure we can't time out indefinitely
-  boost::asio::deadline_timer suicide_timer(io);
-  suicide_timer.expires_from_now(boost::posix_time::milliseconds(2000));
-  suicide_timer.async_wait([&context, &exit_now](auto ec) {
+  boost::asio::deadline_timer watchdog_timer(io);
+  watchdog_timer.expires_from_now(boost::posix_time::milliseconds(2000));
+  watchdog_timer.async_wait([&context, &exit_now](auto ec) {
     if (ec != boost::asio::error::operation_aborted) {
-      std::cout << "SUICIDE TIMER ec=" << ec << std::endl;
+      std::cout << "WATCHDOG TIMER ec=" << ec << std::endl;
       context.closeall();
       exit_now = true;
     }

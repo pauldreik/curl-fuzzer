@@ -1,7 +1,7 @@
 
 #include "FakeServerSocket.h"
 
-#include <iostream>b
+#include <iostream>
 
 static const bool debugoutput = false;
 
@@ -37,7 +37,7 @@ FakeServerSocket::on_read(const boost::system::error_code& ec,
               << ": ec=" << ec.message() << std::endl;
   m_is_waiting_for_read = false;
 
-  // if we got data, it means curl lives. reset the suicide counter!
+  // if we got data, it means curl lives. reset the watchdog!
   m_parent->curlGaveSignOfLife();
 
   if (ec) {
