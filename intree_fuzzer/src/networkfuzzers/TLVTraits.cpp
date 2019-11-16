@@ -9,9 +9,9 @@ TLVTraits::TLVTraits()
 {
 
   // large strings, interesting to mutate
-#define x(tlvtype)                                                             \
-  m_all.emplace_back(CurlOption::invalid_curloption,                           \
-                     tlvtype,                                                  \
+#define x(tlvtype)                                                            \
+  m_all.emplace_back(CurlOption::invalid_curloption,                          \
+                     tlvtype,                                                 \
                      CurlOption::Kind::interesting_composing_string);
 
   x(TLV_TYPE_RESPONSE0);
@@ -28,32 +28,32 @@ TLVTraits::TLVTraits()
 #undef x
 
   // these are list of strings,
-#define x(tlvtype)                                                             \
-  m_all.emplace_back(CurlOption::invalid_curloption,                           \
-                     tlvtype,                                                  \
+#define x(tlvtype)                                                            \
+  m_all.emplace_back(CurlOption::invalid_curloption,                          \
+                     tlvtype,                                                 \
                      CurlOption::Kind::not_so_interesting_composing_string);
   x(TLV_TYPE_HEADER);
   x(TLV_TYPE_MAIL_RECIPIENT);
 #undef x
 
   // a nested tlv type, for setting mime
-#define x(tlvtype)                                                             \
-  m_all.emplace_back(CurlOption::invalid_curloption,                           \
-                     tlvtype,                                                  \
+#define x(tlvtype)                                                            \
+  m_all.emplace_back(CurlOption::invalid_curloption,                          \
+                     tlvtype,                                                 \
                      CurlOption::Kind::no_so_interesting_once_nestedtlv);
   x(TLV_TYPE_MIME_PART);
 #undef x
 
   // string to post
-#define x(tlvtype, curlopt)                                                    \
-  m_all.emplace_back(                                                          \
+#define x(tlvtype, curlopt)                                                   \
+  m_all.emplace_back(                                                         \
     curlopt, tlvtype, CurlOption::Kind::not_so_interesting_once_string);
   x(TLV_TYPE_POSTFIELDS, CURLOPT_POSTFIELDS);
 #undef x
 
   // flags
-#define x(tlvtype, curlopt)                                                    \
-  m_all.emplace_back(                                                          \
+#define x(tlvtype, curlopt)                                                   \
+  m_all.emplace_back(                                                         \
     curlopt, tlvtype, CurlOption::Kind::not_so_interesting_flag_once);
 
   x(TLV_TYPE_UPLOAD1, CURLOPT_UPLOAD);
@@ -76,8 +76,8 @@ TLVTraits::TLVTraits()
 #undef x
 
   // short strings
-#define x(tlvtype, curlopt)                                                    \
-  m_all.emplace_back(                                                          \
+#define x(tlvtype, curlopt)                                                   \
+  m_all.emplace_back(                                                         \
     curlopt, tlvtype, CurlOption::Kind::not_so_interesting_once_string);
   x(TLV_TYPE_URL, CURLOPT_URL);
   x(TLV_TYPE_DOH_URL, CURLOPT_DOH_URL);
@@ -101,9 +101,10 @@ bool
 TLVTraits::canBeSetMoreThanOnce(int16_t tlvtype) const
 {
   auto p = findOptionByTlvType(tlvtype);
-  if (p) {
+  if(p) {
     return p->canBeSetMoreThanOnce();
-  } else {
+  }
+  else {
     return false;
   }
 }
@@ -118,17 +119,17 @@ bool
 TLVTraits::isValidLength(int16_t tlvtype, size_t len) const
 {
   auto p = findOptionByTlvType(tlvtype);
-  if (p) {
+  if(p) {
     return p->isValidLength(len);
   }
   return false;
 }
 
-const CurlOption*
+const CurlOption *
 TLVTraits::findOptionByTlvType(int16_t tlvtype) const
 {
-  for (const auto& e : m_all) {
-    if (e.m_tlvtype == tlvtype) {
+  for(const auto &e : m_all) {
+    if(e.m_tlvtype == tlvtype) {
       return &e;
     }
   }
@@ -138,37 +139,37 @@ TLVTraits::findOptionByTlvType(int16_t tlvtype) const
 bool
 CurlOption::canBeSetMoreThanOnce() const
 {
-  switch (m_kind) {
-    case Kind::interesting_composing_string:
-    case Kind::not_so_interesting_composing_string:
-      return true;
-    default:
-      return false;
+  switch(m_kind) {
+  case Kind::interesting_composing_string:
+  case Kind::not_so_interesting_composing_string:
+    return true;
+  default:
+    return false;
   }
 }
 
 bool
 CurlOption::isFlag() const
 {
-  switch (m_kind) {
-    case Kind::not_so_interesting_flag_once:
-      return true;
-    default:
-      return false;
+  switch(m_kind) {
+  case Kind::not_so_interesting_flag_once:
+    return true;
+  default:
+    return false;
   }
 }
 
 bool
 CurlOption::isString() const
 {
-  switch (m_kind) {
-    case Kind::interesting_composing_string:
-    case Kind::interesting_once_string:
-    case Kind::not_so_interesting_composing_string:
-    case Kind::not_so_interesting_once_string:
-      return true;
-    default:
-      return false;
+  switch(m_kind) {
+  case Kind::interesting_composing_string:
+  case Kind::interesting_once_string:
+  case Kind::not_so_interesting_composing_string:
+  case Kind::not_so_interesting_once_string:
+    return true;
+  default:
+    return false;
   }
 }
 
@@ -181,23 +182,23 @@ CurlOption::isOther() const
 bool
 CurlOption::isInteresting() const
 {
-  switch (m_kind) {
-    case Kind::interesting_composing_string:
-    case Kind::interesting_once_string:
-      return true;
-    default:
-      return false;
+  switch(m_kind) {
+  case Kind::interesting_composing_string:
+  case Kind::interesting_once_string:
+    return true;
+  default:
+    return false;
   }
 }
 
 bool
 CurlOption::isValidLength(size_t len) const
 {
-  switch (m_kind) {
-    case Kind::not_so_interesting_flag_once:
-      return len == 4;
-    default:
-      // for the others, anything goes
-      return true;
+  switch(m_kind) {
+  case Kind::not_so_interesting_flag_once:
+    return len == 4;
+  default:
+    // for the others, anything goes
+    return true;
   }
 }

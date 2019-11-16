@@ -1,6 +1,5 @@
 #include <stdint.h> // for the c version of uint8_t
-extern "C"
-{
+extern "C" {
 #include "cookie.h"
 }
 #include <cassert>
@@ -11,18 +10,18 @@ extern "C"
 #include "FuzzData.h"
 
 extern "C" int
-LLVMFuzzerTestOneInput(const uint8_t* rawdata, size_t rawsize)
+LLVMFuzzerTestOneInput(const uint8_t *rawdata, size_t rawsize)
 {
   static CurlInitializer curl_raii{};
 
   FuzzData data(rawdata, rawsize);
 
-  CURL* handle = curl_raii.handle();
+  CURL *handle = curl_raii.handle();
 
   // fuzzing using files on the file system is slow, so only make
   // that happen very seldom.
-  const char* cookie_filename = NULL;
-  if (data.getUChar() == 123) {
+  const char *cookie_filename = NULL;
+  if(data.getUChar() == 123) {
     // initialize once. use the pid to get uniqueness.
     static const std::string filename = [&]() {
       // put it in ram
@@ -40,55 +39,55 @@ LLVMFuzzerTestOneInput(const uint8_t* rawdata, size_t rawsize)
     cookie_filename = filename.c_str();
 
     // maybe use it as the cookie jar file
-    if (data.getUChar() < 10) {
+    if(data.getUChar() < 10) {
       curl_easy_setopt(handle, CURLOPT_COOKIEJAR, cookie_filename);
     }
 
     // maybe use it as the cookiefile
-    if (data.getUChar() < 10) {
+    if(data.getUChar() < 10) {
       curl_easy_setopt(handle, CURLOPT_COOKIEFILE, cookie_filename);
     }
   }
 
   // Curl_cookie_loadfiles(curl.handle());
-  CookieInfo* info = Curl_cookie_init(handle,
+  CookieInfo *info = Curl_cookie_init(handle,
                                       cookie_filename,
                                       NULL,
                                       data.getBool() // newsession
   );
 
   const int nof_add = data.getUChar();
-  for (int i = 0; i < nof_add; ++i) {
+  for(int i = 0; i < nof_add; ++i) {
     bool secure = data.getBool();
-    Cookie* cookie = Curl_cookie_add(handle,
+    Cookie *cookie = Curl_cookie_add(handle,
                                      // data.getBool()?info:NULL,//info
-                                     info,              // info
-                                     data.getBool(),    // header,
-                                     data.getBool(),    // expiry
+                                     info, // info
+                                     data.getBool(), // header,
+                                     data.getBool(), // expiry
                                      data.getzstring(), // lineptr
                                      data.getzstring(), // domain
                                      data.getzstring(), // path,
-                                     secure);           // secure
+                                     secure); // secure
   }
 
-  if (data.getBool()) {
+  if(data.getBool()) {
     Curl_cookie_clearall(info);
   }
 
   const int nof_get = data.getUChar();
-  for (int i = 0; i < nof_get; ++i) {
-    Cookie* cookie2 = Curl_cookie_getlist(info,
+  for(int i = 0; i < nof_get; ++i) {
+    Cookie *cookie2 = Curl_cookie_getlist(info,
                                           data.getzstring(), // host
                                           data.getzstring(), // path
-                                          data.getBool());   // secure
+                                          data.getBool()); // secure
     Curl_cookie_freelist(cookie2);
   }
 
-  if (data.getBool()) {
+  if(data.getBool()) {
     curl_easy_setopt(handle, CURLOPT_COOKIEJAR, "/dev/null");
   }
 
-  if (data.getBool()) {
+  if(data.getBool()) {
     Curl_flush_cookies(handle, data.getBool());
   }
   Curl_cookie_cleanup(info);

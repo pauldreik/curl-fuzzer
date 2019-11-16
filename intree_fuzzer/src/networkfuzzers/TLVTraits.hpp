@@ -12,9 +12,8 @@ struct CurlOption
   {
     /// a flag that can be zet zero or once.
     not_so_interesting_flag_once,
-    /// a string which can be set zero or more times, not so interesting to fuzz
-    /// because
-    /// it just sets the url/username/password etc
+    /// a string which can be set zero or more times, not so interesting to
+    /// fuzz because it just sets the url/username/password etc
     not_so_interesting_once_string,
     /// a long string, interesting to fuzz, given zero or one time.
     interesting_once_string,
@@ -37,10 +36,9 @@ struct CurlOption
   static const CurlOptionType invalid_curloption;
 
   CurlOption(CurlOptionType opt, int16_t tlvtype, Kind kind)
-    : m_curloption(opt)
-    , m_tlvtype(tlvtype)
-    , m_kind(kind)
-  {}
+    : m_curloption(opt), m_tlvtype(tlvtype), m_kind(kind)
+  {
+  }
   // we use invalid_curloption if this does not apply
   CurlOptionType m_curloption;
   int16_t m_tlvtype;
@@ -55,7 +53,7 @@ public:
   bool canBeSetMoreThanOnce(int16_t tlvtype) const;
   bool isValidType(int16_t tlvtype) const;
   bool isValidLength(int16_t tlvtype, size_t len) const;
-  const CurlOption* findOptionByTlvType(int16_t tlvtype) const;
+  const CurlOption *findOptionByTlvType(int16_t tlvtype) const;
 
 private:
   void addFlag(CurlOption::CurlOptionType opt, int16_t tlvtype);

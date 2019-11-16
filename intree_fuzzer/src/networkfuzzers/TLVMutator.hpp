@@ -12,16 +12,15 @@
 
 struct Block
 {
-  Block(uint16_t type, const uint8_t* Data, uint8_t Size)
-    : m_type(type)
+  Block(uint16_t type, const uint8_t *Data, uint8_t Size) : m_type(type)
   {
     m_data.assign(Data, Data + Size);
   }
   uint16_t m_type;
   /// length of data in bytes
   size_t datalen() const { return m_data.size(); }
-  uint8_t* data() { return m_data.data(); }
-  const uint8_t* data() const { return m_data.data(); }
+  uint8_t *data() { return m_data.data(); }
+  const uint8_t *data() const { return m_data.data(); }
   std::vector<uint8_t> m_data;
 
   /// total size in bytes, including header and data
@@ -49,15 +48,13 @@ struct BlockHolder
     ALLOW_NONCOMPOSITING = 1 << 6,
     ALLOW_COMPOSITING = 1 << 6,
   };
-  explicit BlockHolder(unsigned int Seed)
-    : m_engine(Seed)
-  {}
-  void initializeFromBuffer(const uint8_t* Data, size_t Size);
+  explicit BlockHolder(unsigned int Seed) : m_engine(Seed) {}
+  void initializeFromBuffer(const uint8_t *Data, size_t Size);
   size_t totalSizeInBytes() const;
-  template<class Integer>
+  template <class Integer>
   Integer getInteger(Integer min, Integer max)
   {
-    if (min == max) {
+    if(min == max) {
       return min;
     }
     assert(min < max);
@@ -68,27 +65,26 @@ struct BlockHolder
   /// makes a garbage block and returns it, does not insert it
   Block makeGarbage(int tlvtype, const size_t len, const bool printable_ascii);
   bool insertGarbage(const size_t len, const bool printable_ascii);
-  Block& pickRandomBlock();
-  Block* pickRandomBlock(bool must_be_interesting,
-                         bool can_be_flags,
+  Block &pickRandomBlock();
+  Block *pickRandomBlock(bool must_be_interesting, bool can_be_flags,
                          bool can_be_string);
 
   /// picks two random blocks if possible, subject to restriction from the
   /// selection bitmask (ored from BlockSelection)
-  std::tuple<Block*, Block*> pickRandomBlocks(
+  std::tuple<Block *, Block *> pickRandomBlocks(
     unsigned selection,
     unsigned composition = ALLOW_COMPOSITING | ALLOW_NONCOMPOSITING);
 
   std::vector<Block>::iterator iterator_at(size_t index);
   std::vector<Block>::iterator iterator_at(std::ptrdiff_t index);
-  Block& at(size_t index);
-  Block& at(std::ptrdiff_t index);
+  Block &at(size_t index);
+  Block &at(std::ptrdiff_t index);
   /// mutates the content of a single block, without
   /// changing the type
   bool mutateSingleBlock();
   bool mutateSingleBlock(size_t index);
-  bool mutateSingleBlock(Block& block);
-  bool mutateSingleBlock(Block* block);
+  bool mutateSingleBlock(Block &block);
+  bool mutateSingleBlock(Block *block);
 
   bool mutateManyBlocks(size_t howmany);
   // picks a random interesting block and mutates it
@@ -127,7 +123,7 @@ struct BlockHolder
   bool removeRedundant();
   /// flattens the blocks to the given buffer
   /// returns the number of bytes written
-  size_t flattenToBuffer(uint8_t* Data, size_t Size);
+  size_t flattenToBuffer(uint8_t *Data, size_t Size);
   /// size in number of blocks
   size_t size() const { return m_blocks.size(); }
   /// size in number of blocks
@@ -138,9 +134,9 @@ struct BlockHolder
   bool empty() const { return m_blocks.empty(); }
 
   /// splices other into this
-  void splice(BlockHolder& other);
-  void splice_a_then_b(BlockHolder& other);
-  void splice_nibbled(BlockHolder& other);
+  void splice(BlockHolder &other);
+  void splice_a_then_b(BlockHolder &other);
+  void splice_nibbled(BlockHolder &other);
   void prettyPrint();
   /// sorts the block in such a way that
   /// they get a predictable placement

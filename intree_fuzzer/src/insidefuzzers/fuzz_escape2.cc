@@ -7,48 +7,47 @@
 #include "FuzzData.h"
 
 #include "curl/curl.h"
-extern "C"
-{
+extern "C" {
 #include "escape.h"
 }
 
 #include "curl_config.h"
-extern "C"
-{
+extern "C" {
 // clang-format off
 /* The last 3 #include files should be in this order */
 #include "curl_printf.h"
 #include "curl_memory.h"
 #include "memdebug.h"
-  // clang-format on
+// clang-format on
 }
 
 extern "C" int
-LLVMFuzzerTestOneInput(const uint8_t* rawdata, size_t rawsize)
+LLVMFuzzerTestOneInput(const uint8_t *rawdata, size_t rawsize)
 {
   static CurlInitializer curl_raii{};
 
   FuzzData data(rawdata, rawsize);
 
-  CURL* handle = curl_raii.handle();
+  CURL *handle = curl_raii.handle();
 
   const bool usenullterminator = data.getBool();
   const bool use_strlen = data.getBool();
 
-  const char* string;
+  const char *string;
   size_t stringlength = 0;
 
-  if (usenullterminator) {
+  if(usenullterminator) {
     auto string2 = data.getstring();
-    if (!string2.first) {
+    if(!string2.first) {
       // don't pass null as data
       return 0;
     }
     string = string2.first;
     stringlength = string2.second;
-  } else {
+  }
+  else {
     string = data.getzstring();
-    if (use_strlen) {
+    if(use_strlen) {
       stringlength = std::strlen(string);
     }
   }

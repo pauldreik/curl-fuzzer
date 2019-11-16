@@ -12,7 +12,7 @@ public:
     assert(ret == 0);
     m_handle = curl_easy_init();
   }
-  CURL* handle() const { return m_handle; }
+  CURL *handle() const { return m_handle; }
   ~CurlInitializer()
   {
     curl_easy_cleanup(m_handle);
@@ -20,6 +20,6 @@ public:
   }
 
 private:
-  CURL* m_handle{};
+  CURL *m_handle{};
 };
 #endif

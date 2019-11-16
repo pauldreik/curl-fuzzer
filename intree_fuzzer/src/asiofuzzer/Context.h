@@ -16,14 +16,13 @@
 
 #include <curl/curl.h>
 
-
 struct FakeServerSocket;
 
 struct Context
 {
-  explicit Context(IOCONTEXT& m_io);
+  explicit Context(IOCONTEXT &m_io);
   // returns the number of bytes consumed from data
-  size_t setoptions(const uint8_t* data, size_t size);
+  size_t setoptions(const uint8_t *data, size_t size);
   // runs curl once, nonblocking. returns what
   // it says is the number of things it waits for (nrunning)
   int runCurlOnce();
@@ -58,11 +57,12 @@ struct Context
 
   int time_curl_has_had_to_do_something() const
   {
-    if (latest_time_of_input > latest_sign_of_life) {
+    if(latest_time_of_input > latest_sign_of_life) {
       // we have made a change, but not yet seen
       // any signs that curl noticed.
       return (nfast_timeouts - latest_time_of_input);
-    } else {
+    }
+    else {
       // latest sign of life was too long ago, and
       // we have not made anything that curl should
       // have noticed
@@ -80,10 +80,10 @@ struct Context
   int latest_time_of_input = 0;
 
   ~Context();
-  IOCONTEXT& m_io;
-  CURL* m_easy{};
-  struct curl_slist* m_connect_to_list{};
-  CURLM* m_multi_handle{};
+  IOCONTEXT &m_io;
+  CURL *m_easy{};
+  struct curl_slist *m_connect_to_list{};
+  CURLM *m_multi_handle{};
 
   std::string getNextReply();
 
@@ -93,7 +93,6 @@ struct Context
   std::vector<int> m_curlsockets;
 
   // responses, made up from data by the fuzzer
-  void splitFuzzDataIntoResponses(const uint8_t* data,size_t size);
+  void splitFuzzDataIntoResponses(const uint8_t *data, size_t size);
   std::vector<std::string> m_responses;
 };
-

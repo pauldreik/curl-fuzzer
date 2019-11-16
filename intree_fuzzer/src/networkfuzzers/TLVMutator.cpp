@@ -15,13 +15,10 @@
 
 static const TLVTraits traits;
 
-extern "C" size_t
-LLVMFuzzerMutate(uint8_t* Data, size_t Size, size_t MaxSize);
+extern "C" size_t LLVMFuzzerMutate(uint8_t *Data, size_t Size, size_t MaxSize);
 
 extern "C" size_t
-curl_LLVMFuzzerCustomMutator(uint8_t* Data,
-                             size_t Size,
-                             size_t MaxSize,
+curl_LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t MaxSize,
                              unsigned int Seed)
 {
   assert(Data);
@@ -35,24 +32,24 @@ curl_LLVMFuzzerCustomMutator(uint8_t* Data,
   h.removeRedundant();
 
   // in case of empty, bootstrap
-  if (h.empty()) {
+  if(h.empty()) {
     h.bootstrap(MaxSize);
   }
   // mutate (try a few times, until something happened)
   int ntries = 1;
   do {
-    if (h.mutate(MaxSize)) {
+    if(h.mutate(MaxSize)) {
       break;
     }
-  } while (++ntries < 10);
+  } while(++ntries < 10);
   h.removeRedundant();
 
   const size_t sizebefore = h.totalSizeInBytes();
   // make sure it will fit in the buffer given
-  while (h.totalSizeInBytes() > MaxSize) {
+  while(h.totalSizeInBytes() > MaxSize) {
     h.deleteBlock();
   }
-  if (false) {
+  if(false) {
     std::cout << "sizebefore=" << sizebefore << "\tSize=" << Size
               << "\tMaxSize=" << MaxSize << std::endl;
   }
@@ -69,21 +66,14 @@ curl_LLVMFuzzerCustomMutator(uint8_t* Data,
 // Combines pieces of Data1 & Data2 together into Out.
 // Returns the new size, which is not greater than MaxOutSize.
 // Should produce the same mutation given the same Seed.
+extern "C" size_t LLVMFuzzerCustomCrossOver(const uint8_t *Data1, size_t Size1,
+                                            const uint8_t *Data2, size_t Size2,
+                                            uint8_t *Out, size_t MaxOutSize,
+                                            unsigned int Seed);
 extern "C" size_t
-LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
-                          size_t Size1,
-                          const uint8_t* Data2,
-                          size_t Size2,
-                          uint8_t* Out,
-                          size_t MaxOutSize,
-                          unsigned int Seed);
-extern "C" size_t
-curl_LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
-                               size_t Size1,
-                               const uint8_t* Data2,
-                               size_t Size2,
-                               uint8_t* Out,
-                               size_t MaxOutSize,
+curl_LLVMFuzzerCustomCrossOver(const uint8_t *Data1, size_t Size1,
+                               const uint8_t *Data2, size_t Size2,
+                               uint8_t *Out, size_t MaxOutSize,
                                unsigned int Seed)
 {
   BlockHolder h1(Seed);
@@ -94,7 +84,7 @@ curl_LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
 
   const size_t N1 = h1.size();
   const size_t N2 = h2.size();
-  if (N1 == 0 || N2 == 0) {
+  if(N1 == 0 || N2 == 0) {
     // refuse to work with silly inputs
     return 0;
   }
@@ -104,7 +94,7 @@ curl_LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
   h1.removeRedundant();
 
   // make sure it fits
-  while (h1.totalSizeInBytes() > MaxOutSize) {
+  while(h1.totalSizeInBytes() > MaxOutSize) {
     h1.deleteBlock();
   }
 
@@ -116,12 +106,12 @@ curl_LLVMFuzzerCustomCrossOver(const uint8_t* Data1,
 }
 
 std::vector<Block>
-splitIntoBlocks(const uint8_t* Data, size_t Size)
+splitIntoBlocks(const uint8_t *Data, size_t Size)
 {
   std::vector<Block> ret;
   size_t i = 0;
   const size_t minblocksize = sizeof(uint16_t) + sizeof(uint32_t);
-  while (i + minblocksize <= Size) {
+  while(i + minblocksize <= Size) {
 
     std::uint16_t tmp16;
     std::memcpy(&tmp16, Data + i, sizeof(tmp16));
@@ -133,23 +123,23 @@ splitIntoBlocks(const uint8_t* Data, size_t Size)
     auto len = __builtin_bswap32(tmp32);
     i += sizeof(tmp32);
 
-    const uint8_t* data = len ? Data + i : nullptr;
+    const uint8_t *data = len ? Data + i : nullptr;
     i += len;
 
     // reject invalid types
-    if (type < TLV_TYPE_LOWEST || type > TLV_TYPE_HIGHEST) {
+    if(type < TLV_TYPE_LOWEST || type > TLV_TYPE_HIGHEST) {
       continue;
     }
-    if (!traits.isValidType(type)) {
+    if(!traits.isValidType(type)) {
       continue;
     }
     // reject data of the wrong length
-    if (!traits.isValidLength(type, len)) {
+    if(!traits.isValidLength(type, len)) {
       continue;
     }
 
     // do not allow to point outside of Data
-    if (i <= Size) {
+    if(i <= Size) {
       ret.emplace_back(type, data, len);
     }
   }
@@ -159,7 +149,7 @@ splitIntoBlocks(const uint8_t* Data, size_t Size)
 }
 
 void
-BlockHolder::initializeFromBuffer(const uint8_t* Data, size_t Size)
+BlockHolder::initializeFromBuffer(const uint8_t *Data, size_t Size)
 {
   m_blocks = splitIntoBlocks(Data, Size);
 }
@@ -168,7 +158,7 @@ size_t
 BlockHolder::totalSizeInBytes() const
 {
   size_t total_size = 0;
-  for (const auto& b : m_blocks) {
+  for(const auto &b : m_blocks) {
     total_size += b.sizeInBytes();
   }
   return total_size;
@@ -181,8 +171,7 @@ BlockHolder::makeRandomTLVType()
 }
 
 Block
-BlockHolder::makeGarbage(int tlvtype,
-                         const size_t len,
+BlockHolder::makeGarbage(int tlvtype, const size_t len,
                          const bool printable_ascii)
 {
   // these are the printable ascii, plus control characters relevant
@@ -198,7 +187,7 @@ BlockHolder::makeGarbage(int tlvtype,
     const int arraylen = nof_printable + nof_controlchars;
     std::array<uint8_t, arraylen> chars;
     int i = 0;
-    for (i = 0; i < nof_printable; ++i) {
+    for(i = 0; i < nof_printable; ++i) {
       chars.at(i) = min_printable_ascii + i;
     }
     chars.at(i++) = '\r';
@@ -210,12 +199,13 @@ BlockHolder::makeGarbage(int tlvtype,
   Block b(tlvtype, nullptr, 0);
 
   b.m_data.reserve(len);
-  if (printable_ascii) {
-    for (size_t i = 0; i < len; ++i) {
+  if(printable_ascii) {
+    for(size_t i = 0; i < len; ++i) {
       b.m_data.push_back(chars.at(getInteger<size_t>(0, chars.size() - 1)));
     }
-  } else {
-    for (size_t i = 0; i < len; ++i) {
+  }
+  else {
+    for(size_t i = 0; i < len; ++i) {
       b.m_data.push_back(getInteger<uint8_t>(0, 255));
     }
   }
@@ -231,7 +221,7 @@ BlockHolder::insertGarbage(const size_t len, const bool printable_ascii)
   return true;
 }
 
-Block&
+Block &
 BlockHolder::pickRandomBlock()
 {
   assert(!empty());
@@ -239,36 +229,36 @@ BlockHolder::pickRandomBlock()
   return at(index);
 }
 
-Block*
-BlockHolder::pickRandomBlock(bool must_be_interesting,
-                             bool can_be_flags,
+Block *
+BlockHolder::pickRandomBlock(bool must_be_interesting, bool can_be_flags,
                              bool can_be_string)
 {
-  std::vector<Block*> blocks;
+  std::vector<Block *> blocks;
   blocks.reserve(m_blocks.size());
-  for (auto& b : m_blocks) {
+  for(auto &b : m_blocks) {
     const auto type = b.m_type;
     const auto t = traits.findOptionByTlvType(type);
-    if (!t) {
+    if(!t) {
       continue;
     }
-    if (must_be_interesting && !t->isInteresting()) {
+    if(must_be_interesting && !t->isInteresting()) {
       continue;
     }
-    if (can_be_flags && t->isFlag()) {
+    if(can_be_flags && t->isFlag()) {
       blocks.push_back(&b);
-    } else if (can_be_string && t->isString()) {
+    }
+    else if(can_be_string && t->isString()) {
       blocks.push_back(&b);
     }
   }
-  if (blocks.empty()) {
+  if(blocks.empty()) {
     return nullptr;
   }
   size_t index = getInteger<size_t>(0, blocks.size() - 1);
   return blocks.at(index);
 }
 
-std::tuple<Block*, Block*>
+std::tuple<Block *, Block *>
 BlockHolder::pickRandomBlocks(const unsigned selection, unsigned composition)
 {
   const bool allow_interesting = (selection & ALLOW_INTERESTING);
@@ -280,35 +270,35 @@ BlockHolder::pickRandomBlocks(const unsigned selection, unsigned composition)
   const bool allow_noncomposite = (composition & ALLOW_NONCOMPOSITING);
   const bool allow_composite = (composition & ALLOW_COMPOSITING);
 
-  std::vector<Block*> blocks;
+  std::vector<Block *> blocks;
   blocks.reserve(m_blocks.size());
-  for (auto& b : m_blocks) {
+  for(auto &b : m_blocks) {
     const auto type = b.m_type;
     const auto t = traits.findOptionByTlvType(type);
-    if (!t) {
+    if(!t) {
       // illegal type
       continue;
     }
-    if ((t->isInteresting() && allow_interesting) ||
-        (!t->isInteresting() && allow_not_interesting)) {
-      if ((include_flag && t->isFlag()) || (include_string && t->isString()) ||
-          (include_other && t->isOther())) {
-        if ((allow_composite && t->canBeSetMoreThanOnce()) ||
-            (allow_noncomposite && !t->canBeSetMoreThanOnce())) {
+    if((t->isInteresting() && allow_interesting) ||
+       (!t->isInteresting() && allow_not_interesting)) {
+      if((include_flag && t->isFlag()) || (include_string && t->isString()) ||
+         (include_other && t->isOther())) {
+        if((allow_composite && t->canBeSetMoreThanOnce()) ||
+           (allow_noncomposite && !t->canBeSetMoreThanOnce())) {
           blocks.push_back(&b);
         }
       }
     }
   }
-  Block* ret0{};
-  Block* ret1{};
+  Block *ret0{};
+  Block *ret1{};
 
-  if (blocks.size() > 0) {
+  if(blocks.size() > 0) {
     size_t index0 = getInteger<size_t>(0, blocks.size() - 1);
     ret0 = blocks.at(index0);
     blocks.erase(blocks.begin() + index0);
   }
-  if (blocks.size() > 0) {
+  if(blocks.size() > 0) {
     size_t index1 = getInteger<size_t>(0, blocks.size() - 1);
     ret1 = blocks.at(index1);
   }
@@ -330,14 +320,14 @@ BlockHolder::iterator_at(std::ptrdiff_t index)
   return m_blocks.begin() + index;
 }
 
-Block&
+Block &
 BlockHolder::at(size_t index)
 {
   assert(index < size());
   return m_blocks.at(index);
 }
 
-Block&
+Block &
 BlockHolder::at(std::ptrdiff_t index)
 {
   assert(index >= 0);
@@ -357,25 +347,25 @@ BlockHolder::mutateSingleBlock()
 bool
 BlockHolder::mutateSingleBlock(size_t index)
 {
-  Block& b = at(index);
+  Block &b = at(index);
   return mutateSingleBlock(b);
 }
 
 bool
-BlockHolder::mutateSingleBlock(Block& b)
+BlockHolder::mutateSingleBlock(Block &b)
 {
   // what type is this block?
-  const CurlOption* t{};
+  const CurlOption *t{};
 
   t = traits.findOptionByTlvType(b.m_type);
 
   // if the block is garbage, flip the type and try again
-  while (t == nullptr) {
+  while(t == nullptr) {
     b.m_type = makeRandomTLVType();
     t = traits.findOptionByTlvType(b.m_type);
   }
 
-  if (t->isFlag()) {
+  if(t->isFlag()) {
     // fixed size, so mutate the content, in place
     // in case this was garbage coming in, resize it.
     b.m_data.resize(4);
@@ -388,9 +378,10 @@ BlockHolder::mutateSingleBlock(Block& b)
   size_t size_now = b.datalen();
   size_t new_size = 0;
 
-  if (size_now < 50) {
+  if(size_now < 50) {
     new_size = 100;
-  } else {
+  }
+  else {
     new_size = 2 * size_now;
   }
   b.m_data.resize(new_size);
@@ -400,11 +391,12 @@ BlockHolder::mutateSingleBlock(Block& b)
 }
 
 bool
-BlockHolder::mutateSingleBlock(Block* block)
+BlockHolder::mutateSingleBlock(Block *block)
 {
-  if (block) {
+  if(block) {
     return mutateSingleBlock(*block);
-  } else {
+  }
+  else {
     return false;
   }
 }
@@ -414,18 +406,18 @@ BlockHolder::mutateManyBlocks(size_t howmany)
 {
   assert(howmany > 0);
 
-  if (howmany >= size()) {
-    for (size_t i = 0; i < size(); ++i) {
+  if(howmany >= size()) {
+    for(size_t i = 0; i < size(); ++i) {
       mutateSingleBlock(i);
     }
     return size() != 0;
   }
 
   std::set<size_t> indices;
-  while (indices.size() < howmany) {
+  while(indices.size() < howmany) {
     indices.insert(getInteger<size_t>(0, size() - 1));
   }
-  for (const auto& i : indices) {
+  for(const auto &i : indices) {
     mutateSingleBlock(i);
   }
   return true;
@@ -434,7 +426,7 @@ BlockHolder::mutateManyBlocks(size_t howmany)
 bool
 BlockHolder::deleteBlock()
 {
-  if (m_blocks.empty()) {
+  if(m_blocks.empty()) {
     return false;
   }
   size_t index = this->getInteger<size_t>(0, m_blocks.size());
@@ -445,7 +437,7 @@ BlockHolder::deleteBlock()
 bool
 BlockHolder::swapBlocks()
 {
-  if (m_blocks.size() < 2) {
+  if(m_blocks.size() < 2) {
     return false;
   }
   // pick one at random.
@@ -454,7 +446,7 @@ BlockHolder::swapBlocks()
   size_t index2 = index1;
   do {
     index2 = getInteger<size_t>(0, N);
-  } while (index2 == index1);
+  } while(index2 == index1);
 
   std::swap(m_blocks.at(index1), m_blocks.at(index2));
   return true;
@@ -463,7 +455,7 @@ BlockHolder::swapBlocks()
 bool
 BlockHolder::swapTypes()
 {
-  if (m_blocks.size() < 2) {
+  if(m_blocks.size() < 2) {
     return false;
   }
   // pick one at random.
@@ -472,7 +464,7 @@ BlockHolder::swapTypes()
   size_t index2 = index1;
   do {
     index2 = getInteger<size_t>(0, N);
-  } while (index2 == index1);
+  } while(index2 == index1);
 
   std::swap(m_blocks.at(index1).m_type, m_blocks.at(index2).m_type);
   return true;
@@ -481,7 +473,7 @@ BlockHolder::swapTypes()
 bool
 BlockHolder::duplicateBlockAsAnotherType()
 {
-  if (m_blocks.size() < 1) {
+  if(m_blocks.size() < 1) {
     return false;
   }
   // pick one at random.
@@ -490,7 +482,7 @@ BlockHolder::duplicateBlockAsAnotherType()
   auto current_type = copy.m_type;
   do {
     copy.m_type = makeRandomTLVType();
-  } while (current_type == copy.m_type);
+  } while(current_type == copy.m_type);
 
   const size_t index = getInteger<size_t>(0, m_blocks.size());
   m_blocks.insert(iterator_at(index), std::move(copy));
@@ -500,7 +492,7 @@ BlockHolder::duplicateBlockAsAnotherType()
 bool
 BlockHolder::rotateBlocks()
 {
-  if (m_blocks.size() < 2) {
+  if(m_blocks.size() < 2) {
     return false;
   }
   // pick a mid element at random.
@@ -512,26 +504,26 @@ BlockHolder::rotateBlocks()
 bool
 BlockHolder::mutateType()
 {
-  if (m_blocks.empty()) {
+  if(m_blocks.empty()) {
     return false;
   }
-  auto& type = pickRandomBlock().m_type;
+  auto &type = pickRandomBlock().m_type;
   const auto origtype = type;
   do {
     type = makeRandomTLVType();
-  } while (type == origtype);
+  } while(type == origtype);
   return true;
 }
 
 bool
 BlockHolder::llvmMutatedCopy()
 {
-  if (m_blocks.empty()) {
+  if(m_blocks.empty()) {
     return false;
   }
-  for (int i = 0; i < 10; ++i) {
-    Block& b = pickRandomBlock();
-    if (b.datalen() == 0) {
+  for(int i = 0; i < 10; ++i) {
+    Block &b = pickRandomBlock();
+    if(b.datalen() == 0) {
       // not interesting, does probably not need a payload
       continue;
     }
@@ -555,36 +547,36 @@ bool
 BlockHolder::mutateBlindly()
 {
   // select a mutation
-  switch (getInteger<int>(0, 7)) {
-    case 0:
-      // let mutation of multiple blocks be
-      // taken care by the "stacked tweaks" functionality
-      // in libfuzzer
-      return mutateSingleBlock();
-    case 1:
-      return deleteBlock();
-    case 2:
-      return duplicateBlockAsAnotherType();
+  switch(getInteger<int>(0, 7)) {
+  case 0:
+    // let mutation of multiple blocks be
+    // taken care by the "stacked tweaks" functionality
+    // in libfuzzer
+    return mutateSingleBlock();
+  case 1:
+    return deleteBlock();
+  case 2:
+    return duplicateBlockAsAnotherType();
 
-    case 3:
-      return mutateType();
+  case 3:
+    return mutateType();
 
-    case 4:
-      // newly made up ascii garbage
-      return insertGarbage(getInteger<size_t>(0, 1000), true);
+  case 4:
+    // newly made up ascii garbage
+    return insertGarbage(getInteger<size_t>(0, 1000), true);
 
-    case 5:
-      // binary garbage
-      return insertGarbage(getInteger<size_t>(0, 10), false);
+  case 5:
+    // binary garbage
+    return insertGarbage(getInteger<size_t>(0, 10), false);
 
-    case 6:
-      return llvmMutatedCopy();
-    case 7:
-      // swap types between two existing blocks.
-      return swapTypes();
+  case 6:
+    return llvmMutatedCopy();
+  case 7:
+    // swap types between two existing blocks.
+    return swapTypes();
 
-    default:
-      return false;
+  default:
+    return false;
   }
 }
 
@@ -592,7 +584,7 @@ void
 BlockHolder::bootstrap(size_t MaxSize)
 {
   // make an uninteresting string, good for boot strapping.
-  for (int i = 0; i < 2; ++i) {
+  for(int i = 0; i < 2; ++i) {
     insertNewBlockFromThinAir(BlockSelection::ALLOW_NOT_INTERESTING |
                               BlockSelection::INCLUDE_STRING);
   }
@@ -604,7 +596,7 @@ BlockHolder::bootstrap(size_t MaxSize)
   do {
     insertNewBlockFromThinAir(BlockSelection::ALLOW_INTERESTING |
                               BlockSelection::INCLUDE_STRING);
-  } while (this->totalSizeInBytes() < MaxSize);
+  } while(this->totalSizeInBytes() < MaxSize);
 }
 
 bool
@@ -614,41 +606,41 @@ BlockHolder::mutate(size_t MaxSize)
 
   const auto dice = getInteger<int>(0, 10000);
 
-  if (dice <= 0) {
+  if(dice <= 0) {
     // rare occasion. use the old strategy.
     return mutateBlindly();
   }
 
-  if (dice <= 1) {
+  if(dice <= 1) {
     // mutate one of the not so interesting flags
     auto b = pickRandomBlocks(BlockSelection::ALLOW_NOT_INTERESTING |
                               BlockSelection::INCLUDE_FLAG);
     return mutateSingleBlock(std::get<0>(b));
   }
-  if (dice <= 2) {
+  if(dice <= 2) {
     // mutate one of the not so interesting strings
     auto b = pickRandomBlocks(BlockSelection::ALLOW_NOT_INTERESTING |
                               BlockSelection::INCLUDE_STRING);
     return mutateSingleBlock(std::get<0>(b));
   }
-  if (dice <= 3) {
+  if(dice <= 3) {
     // insert a newly made up uninteresting block
     return insertNewBlockFromThinAir(BlockSelection::ALLOW_NOT_INTERESTING |
                                      BlockSelection::INCLUDE_STRING |
                                      BlockSelection::INCLUDE_FLAG);
   }
-  if (dice <= 4) {
+  if(dice <= 4) {
     // swap the position of two interesting compositing blocks
     auto [b0, b1] = pickRandomBlocks(BlockSelection::ALLOW_INTERESTING |
                                        BlockSelection::INCLUDE_STRING,
                                      ALLOW_COMPOSITING);
-    if (b0 && b1) {
+    if(b0 && b1) {
       std::iter_swap(b0, b1);
       return true;
     }
     return false;
   }
-  if (dice <= 5) {
+  if(dice <= 5) {
     // this was an attemt to get around the fact that libfuzzer does
     // keep MaxSize low, which means it is difficult to get generate
     // respones large enough
@@ -656,7 +648,7 @@ BlockHolder::mutate(size_t MaxSize)
     bootstrap(MaxSize);
     return true;
   }
-  if (dice <= 10000) {
+  if(dice <= 10000) {
     // mutate an interesting string
     auto b = pickRandomBlocks(BlockSelection::ALLOW_INTERESTING |
                               BlockSelection::INCLUDE_STRING);
@@ -668,8 +660,8 @@ BlockHolder::mutate(size_t MaxSize)
 bool
 BlockHolder::mutateFlagBlock()
 {
-  Block* b = pickRandomBlock(false, true, false);
-  if (b) {
+  Block *b = pickRandomBlock(false, true, false);
+  if(b) {
     return mutateSingleBlock(*b);
   }
   return false;
@@ -687,16 +679,16 @@ BlockHolder::insertNewBlockFromThinAir(unsigned selection)
   ALLOW_NOT_INTERESTING= 1<<5
   */
   uint16_t type{};
-  const CurlOption* t{};
-  for (;;) {
+  const CurlOption *t{};
+  for(;;) {
     type = makeRandomTLVType();
     t = traits.findOptionByTlvType(type);
-    if (t) {
-      if (((selection & INCLUDE_FLAG) && t->isFlag()) ||
-          ((selection & INCLUDE_STRING) && t->isString()) ||
-          ((selection & INCLUDE_OTHER) && t->isOther())) {
-        if (((selection & ALLOW_INTERESTING) && t->isInteresting()) ||
-            ((selection & ALLOW_NOT_INTERESTING) && !t->isInteresting())) {
+    if(t) {
+      if(((selection & INCLUDE_FLAG) && t->isFlag()) ||
+         ((selection & INCLUDE_STRING) && t->isString()) ||
+         ((selection & INCLUDE_OTHER) && t->isOther())) {
+        if(((selection & ALLOW_INTERESTING) && t->isInteresting()) ||
+           ((selection & ALLOW_NOT_INTERESTING) && !t->isInteresting())) {
           break;
         }
       }
@@ -704,23 +696,23 @@ BlockHolder::insertNewBlockFromThinAir(unsigned selection)
   }
 
   Block b = [&]() {
-    if (t->isFlag()) {
+    if(t->isFlag()) {
       return makeGarbage(type, 4, false);
     }
-    if (t->isString() && !t->isInteresting()) {
+    if(t->isString() && !t->isInteresting()) {
       // random short length string
       return makeGarbage(type, getInteger(4, 30), true);
     }
-    if (t->isString() && t->isInteresting()) {
+    if(t->isString() && t->isInteresting()) {
       // random long length string
       return makeGarbage(type, getInteger(0, 200), true);
     }
     return makeGarbage(type, getInteger(0, 200), false);
   }();
 
-  if (!t->canBeSetMoreThanOnce()) {
-    for (std::size_t i = 0; i < m_blocks.size(); ++i) {
-      if (at(i).m_type == type) {
+  if(!t->canBeSetMoreThanOnce()) {
+    for(std::size_t i = 0; i < m_blocks.size(); ++i) {
+      if(at(i).m_type == type) {
         std::swap(at(i), b);
         return true;
       }
@@ -739,14 +731,15 @@ BlockHolder::removeRedundant()
   std::set<decltype(Block::m_type)> seen;
 
   int nremoved = 0;
-  for (size_t i = 0; i < m_blocks.size(); ++i) {
+  for(size_t i = 0; i < m_blocks.size(); ++i) {
     const auto type = m_blocks.at(i).m_type;
-    if (seen.count(type)) {
-      if (!traits.canBeSetMoreThanOnce(type)) {
+    if(seen.count(type)) {
+      if(!traits.canBeSetMoreThanOnce(type)) {
         m_blocks.erase(m_blocks.begin() + i);
         ++nremoved;
       }
-    } else {
+    }
+    else {
       seen.insert(type);
     }
   }
@@ -754,12 +747,12 @@ BlockHolder::removeRedundant()
 }
 
 size_t
-BlockHolder::flattenToBuffer(uint8_t* Data, size_t Size)
+BlockHolder::flattenToBuffer(uint8_t *Data, size_t Size)
 {
   // make sure all blocks fit
   const size_t total_size = totalSizeInBytes();
   assert(Size >= total_size);
-  for (const auto& b : m_blocks) {
+  for(const auto &b : m_blocks) {
     const auto type_be = __builtin_bswap16(b.m_type);
     std::memcpy(Data, &type_be, sizeof(uint16_t));
     Data += sizeof(uint16_t);
@@ -770,7 +763,7 @@ BlockHolder::flattenToBuffer(uint8_t* Data, size_t Size)
     Data += sizeof(uint32_t);
     Size -= sizeof(uint32_t);
 
-    if (b.datalen() > 0) {
+    if(b.datalen() > 0) {
       std::memcpy(Data, b.m_data.data(), b.datalen());
       Data += b.datalen();
       Size -= b.datalen();
@@ -780,24 +773,24 @@ BlockHolder::flattenToBuffer(uint8_t* Data, size_t Size)
 }
 
 void
-BlockHolder::splice(BlockHolder& other)
+BlockHolder::splice(BlockHolder &other)
 {
   assert(!empty());
   assert(!other.empty());
 
-  switch (getInteger(0, 1)) {
-    case 0:
-      splice_a_then_b(other);
-      return;
-    case 1:
-      splice_nibbled(other);
-      return;
+  switch(getInteger(0, 1)) {
+  case 0:
+    splice_a_then_b(other);
+    return;
+  case 1:
+    splice_nibbled(other);
+    return;
   }
   assert(false);
 }
 
 void
-BlockHolder::splice_a_then_b(BlockHolder& other)
+BlockHolder::splice_a_then_b(BlockHolder &other)
 {
   // the idea is to take the first N blocks of this, contatenated with
   // the last M blocks of other, with N and M selected at random
@@ -811,28 +804,30 @@ BlockHolder::splice_a_then_b(BlockHolder& other)
 }
 
 void
-BlockHolder::splice_nibbled(BlockHolder& other)
+BlockHolder::splice_nibbled(BlockHolder &other)
 {
   std::vector<Block> spliced;
   const auto S1 = size();
   const auto S2 = other.size();
-  for (size_t i = 0; i < S1 || i < S2; ++i) {
+  for(size_t i = 0; i < S1 || i < S2; ++i) {
     int source = -1;
-    if (i < S1 && i < S2) {
+    if(i < S1 && i < S2) {
       // within both ranges, pick at random
       source = getInteger(1, 2);
-    } else if (i < S1) {
+    }
+    else if(i < S1) {
       source = 1;
-    } else if (i < S2) {
+    }
+    else if(i < S2) {
       source = 2;
     }
-    switch (source) {
-      case 1:
-        spliced.insert(spliced.end(), this->at(i));
-        break;
-      case 2:
-        spliced.insert(spliced.end(), other.at(i));
-        break;
+    switch(source) {
+    case 1:
+      spliced.insert(spliced.end(), this->at(i));
+      break;
+    case 2:
+      spliced.insert(spliced.end(), other.at(i));
+      break;
     }
   }
   m_blocks.swap(spliced);
@@ -841,9 +836,9 @@ BlockHolder::splice_nibbled(BlockHolder& other)
 void
 BlockHolder::prettyPrint()
 {
-  std::ostream& os(std::cout);
+  std::ostream &os(std::cout);
   int i = 0;
-  for (const auto& b : m_blocks) {
+  for(const auto &b : m_blocks) {
     os << " block " << i << "/" << size() << ": ";
     b.prettyPrint();
     ++i;
@@ -854,32 +849,33 @@ void
 BlockHolder::sortBlocks()
 {
   std::stable_sort(
-    m_blocks.begin(), m_blocks.end(), [](const Block& a, const Block& b) {
+    m_blocks.begin(), m_blocks.end(), [](const Block &a, const Block &b) {
       // return std::tuple{ a.m_type, a.datalen() } < std::tuple{ b.m_type,
       // b.datalen() };
       return a.m_type < b.m_type;
     });
 }
-const char*
+const char *
 tlvToString(int type)
 {
-  switch (type) {
-    case TLV_TYPE_URL:
-      return "TLV_TYPE_URL";
+  switch(type) {
+  case TLV_TYPE_URL:
+    return "TLV_TYPE_URL";
 
-    default:
-      return "unknown";
+  default:
+    return "unknown";
   }
 }
 void
 Block::prettyPrint() const
 {
-  std::ostream& os(std::cout);
+  std::ostream &os(std::cout);
   os << tlvToString(m_type) << ": ";
-  if (m_data.data()) {
+  if(m_data.data()) {
     os << "\"";
-    os.write((const char*)m_data.data(), m_data.size());
+    os.write((const char *)m_data.data(), m_data.size());
     os << "\"";
-  } else
+  }
+  else
     os << "NULL";
 }

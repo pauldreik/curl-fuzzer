@@ -7,13 +7,12 @@
 #include <iostream>
 #include <memory>
 
-extern "C" int
-LLVMFuzzerTestOneInput(const uint8_t*, size_t);
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t *, size_t);
 
 namespace bf = boost::filesystem;
 
 static void
-invokeFuzzer(const bf::path& p)
+invokeFuzzer(const bf::path &p)
 {
   //    LLVMFuzzerTestOneInput(buffer, buffer_len);
 
@@ -24,7 +23,7 @@ invokeFuzzer(const bf::path& p)
   std::cout << "Running on file " << counter << ": " << p << '\n';
 
   const auto filesize = bf::file_size(p);
-  if (0 == filesize) {
+  if(0 == filesize) {
     LLVMFuzzerTestOneInput(nullptr, 0);
     return;
   }
@@ -35,29 +34,31 @@ invokeFuzzer(const bf::path& p)
   // use heap allocated memory of the exact size, to maximize the
   // probability of address sanitizer detecting memory errors
   auto buffer = std::make_unique<uint8_t[]>(filesize);
-  file.read((char*)buffer.get(), filesize);
+  file.read((char *)buffer.get(), filesize);
   assert(file.gcount() == filesize);
   LLVMFuzzerTestOneInput(buffer.get(), filesize);
 }
 
 // does a recursive walk (following symlinks)
-template<class Action>
+template <class Action>
 static void
 invoke_on_all_regular_files(bf::path p, Action action)
 {
 
-  if (bf::is_directory(p)) {
+  if(bf::is_directory(p)) {
     bf::recursive_directory_iterator iter(p, bf::symlink_option::recurse);
     bf::recursive_directory_iterator end;
-    for (; iter != end; ++iter) {
+    for(; iter != end; ++iter) {
       auto child = iter->path();
-      if (!bf::is_directory(child)) {
+      if(!bf::is_directory(child)) {
         invoke_on_all_regular_files(child, action);
       }
     }
-  } else if (bf::is_regular_file(p)) {
+  }
+  else if(bf::is_regular_file(p)) {
     action(p);
-  } else if (bf::is_symlink(p)) {
+  }
+  else if(bf::is_symlink(p)) {
     // dereference the symlink
     invoke_on_all_regular_files(bf::read_symlink(p), action);
   }
@@ -65,10 +66,11 @@ invoke_on_all_regular_files(bf::path p, Action action)
 }
 
 int
-main(int argc, char** argv)
+main(int argc, char **argv)
 {
 
-  for (int i = 1; i < argc; ++i) {
-    invoke_on_all_regular_files(argv[i], [](auto file) { invokeFuzzer(file); });
+  for(int i = 1; i < argc; ++i) {
+    invoke_on_all_regular_files(argv[i],
+                                [](auto file) { invokeFuzzer(file); });
   }
 }

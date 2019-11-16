@@ -14,14 +14,14 @@
  */
 
 void
-executeOne(std::istream& iss)
+executeOne(std::istream &iss)
 {
   assert(iss);
 
-  CURL* handle = curl_easy_init();
+  CURL *handle = curl_easy_init();
 
   std::string line;
-  while (std::getline(iss, line)) {
+  while(std::getline(iss, line)) {
     curl_easy_setopt(handle, CURLOPT_COOKIELIST, line.c_str());
   }
 
@@ -32,10 +32,10 @@ executeOne(std::istream& iss)
 }
 
 extern "C" int
-LLVMFuzzerTestOneInput(const uint8_t* rawdata, size_t rawsize)
+LLVMFuzzerTestOneInput(const uint8_t *rawdata, size_t rawsize)
 {
-  const char* beg = (const char*)rawdata;
-  const char* end = beg + rawsize;
+  const char *beg = (const char *)rawdata;
+  const char *end = beg + rawsize;
   std::istringstream iss(std::string(beg, end));
 
   executeOne(iss);
@@ -45,9 +45,9 @@ LLVMFuzzerTestOneInput(const uint8_t* rawdata, size_t rawsize)
 // this is handy for making a reproducer script
 #if IMPLEMENT_OWN_MAIN
 int
-main(int argc, char* argv[])
+main(int argc, char *argv[])
 {
-  for (int i = 1; i < argc; ++i) {
+  for(int i = 1; i < argc; ++i) {
     std::ifstream iss(argv[i]);
     executeOne(iss);
   }
