@@ -12,7 +12,7 @@ struct FakeServerSocket
 {
   FakeServerSocket(IOCONTEXT &io, Context *parent)
     : m_serversocket(io)
-    , m_cryptocontext(boost::asio::ssl::context::tlsv12)
+    // , m_cryptocontext(boost::asio::ssl::context::tlsv12)
     , m_parent(parent)
   {
   }
@@ -29,7 +29,7 @@ struct FakeServerSocket
   /// we own this one
   boost::asio::posix::stream_descriptor m_serversocket;
 
-  boost::asio::ssl::context m_cryptocontext;
+  static boost::asio::ssl::context m_cryptocontext;
   using EncryptedSocket =
     boost::asio::ssl::stream<boost::asio::posix::stream_descriptor>;
   std::unique_ptr<EncryptedSocket> m_encryptedsocket;
