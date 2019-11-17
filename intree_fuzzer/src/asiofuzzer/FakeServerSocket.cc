@@ -76,7 +76,8 @@ FakeServerSocket::on_read(const boost::system::error_code &ec,
   // (content type handshake 0x16, message type client hello 0x01)
   if(!is_encrypted() && bytes_read >= 8 && m_readbuf.at(0) == 0x16 &&
      m_readbuf.at(5) == 0x01) {
-    std::cout << "the client wants to speak TLS" << std::endl;
+      if(debugoutput)
+          std::cout << "the client wants to speak TLS" << std::endl;
 
     m_cryptocontext.set_password_callback(
       [](auto, auto) { return std::string("xxxx"); });
@@ -95,9 +96,11 @@ FakeServerSocket::on_read(const boost::system::error_code &ec,
       boost::asio::const_buffer(m_readbuf.data(), bytes_read),
       [this, bytes_read](const boost::system::error_code &error,
                          std::size_t bytes_transferred) {
+        if(debugoutput) {
         std::cout << "TLS handshake done with error=" << error
                   << " bytes_transferred=" << bytes_transferred << " out of "
                   << bytes_read << std::endl;
+        }
         if(!error) {
           // handling leftover handshake data seems difficult.
           assert(bytes_read == bytes_transferred);
