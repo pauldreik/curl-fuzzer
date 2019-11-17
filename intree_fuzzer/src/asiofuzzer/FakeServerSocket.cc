@@ -92,7 +92,7 @@ FakeServerSocket::on_read(const boost::system::error_code &ec,
 
     m_encryptedsocket->async_handshake(
       boost::asio::ssl::stream_base::handshake_type::server,
-      boost::asio::const_buffer(m_readbuf.data(), m_readbuf.size()),
+      boost::asio::const_buffer(m_readbuf.data(), bytes_read),
       [this, bytes_read](const boost::system::error_code &error,
                          std::size_t bytes_transferred) {
         std::cout << "TLS handshake done with error=" << error
