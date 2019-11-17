@@ -18,6 +18,7 @@ struct FakeServerSocket
   }
 
   void start_async_read();
+  bool is_encrypted() const;
   void on_read(const boost::system::error_code &ec, std::size_t bytes_read);
 
   // returns true if a write was initiated, or the
