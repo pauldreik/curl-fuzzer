@@ -19,13 +19,15 @@ fuzz_open_socket(void *ptr, curlsocktype, struct curl_sockaddr *)
 }
 
 extern "C" size_t
-fuzz_read_callback(char */*buffer*/, size_t /*size*/, size_t /*nitems*/, void */*ptr*/)
+fuzz_read_callback(char * /*buffer*/, size_t /*size*/, size_t /*nitems*/,
+                   void * /*ptr*/)
 {
   return CURL_READFUNC_ABORT;
 }
 
 extern "C" size_t
-fuzz_write_callback(void */*contents*/, size_t size, size_t nmemb, void */*ptr*/)
+fuzz_write_callback(void * /*contents*/, size_t size, size_t nmemb,
+                    void * /*ptr*/)
 {
   // assert(!"wow, you solved the fuzzing puzzle!");
   return size * nmemb;
@@ -42,7 +44,7 @@ Context::onFastTimer(boost::system::error_code ec)
   }
 }
 
-Context::Context(IOCONTEXT &io) : m_fast_timer(io) , m_io(io)
+Context::Context(IOCONTEXT &io) : m_fast_timer(io), m_io(io)
 {
   m_easy = curl_easy_init();
 }
@@ -168,7 +170,11 @@ Context::setoptions(const uint8_t *data, size_t size)
     context.m_easy, CURLOPT_CONNECT_TO, context.m_connect_to_list);
   assert(ret == 0);
 
-  setoption(CURLOPT_PROTOCOLS, CURLPROTO_HTTP);
+  setoption(CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+
+  // do not verify
+  curl_easy_setopt(context.m_easy, CURLOPT_SSL_VERIFYPEER, 0L);
+  curl_easy_setopt(context.m_easy, CURLOPT_SSL_VERIFYHOST, 0L);
 
   // using an ip adress maybe bypasses name resolution?
   setoption(CURLOPT_URL, "http://example.com/");

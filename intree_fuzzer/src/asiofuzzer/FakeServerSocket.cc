@@ -2,6 +2,7 @@
 #include "FakeServerSocket.h"
 
 #include <iostream>
+#include <memory>
 
 static const bool debugoutput = false;
 
@@ -43,6 +44,35 @@ FakeServerSocket::on_read(const boost::system::error_code &ec,
   if(ec) {
     m_parent->haveMadeSomethingCurlShouldNotice();
     m_serversocket.close();
+    return;
+  }
+
+  // does the client want to upgrade to tls?
+  // (content type handshake 0x16, message type client hello 0x01)
+  if(bytes_read >= 8 && m_readbuf.at(0) == 0x16 && m_readbuf.at(5) == 0x01) {
+    std::cout << "the client want to speak TLS" << std::endl;
+
+    m_cryptocontext.set_password_callback(
+      [](auto, auto) { return std::string("xxxx"); });
+    m_cryptocontext.use_certificate_file("cert.pem",
+                                         boost::asio::ssl::context::pem);
+    m_cryptocontext.use_private_key_file("privkey.pem",
+                                         boost::asio::ssl::context::pem);
+
+    m_encryptedsocket = std::make_unique<EncryptedSocket>(
+      std::move(m_serversocket), m_cryptocontext);
+
+    m_encryptedsocket->async_handshake(
+      boost::asio::ssl::stream_base::handshake_type::server,
+      boost::asio::const_buffer(m_readbuf.data(), m_readbuf.size()),
+      [=](const boost::system::error_code &error,
+          std::size_t bytes_transferred) {
+        std::cout << "handshake done with ec=" << ec
+                  << " bytes_transferred=" << bytes_transferred << " out of "
+                  << bytes_read << std::endl;
+        // FIXME setup a read or write
+      });
+    m_parent->haveMadeSomethingCurlShouldNotice();
     return;
   }
 

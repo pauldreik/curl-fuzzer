@@ -3,10 +3,17 @@
 
 #include "Context.h"
 
+#include <boost/asio/ssl.hpp>
+#include <memory>
+
+//#include <variant>
+
 struct FakeServerSocket
 {
-  explicit FakeServerSocket(IOCONTEXT &io, Context *parent)
-    : m_serversocket(io), m_parent(parent)
+  FakeServerSocket(IOCONTEXT &io, Context *parent)
+    : m_serversocket(io)
+    , m_cryptocontext(boost::asio::ssl::context::tlsv12)
+    , m_parent(parent)
   {
   }
 
@@ -20,6 +27,16 @@ struct FakeServerSocket
 
   /// we own this one
   boost::asio::posix::stream_descriptor m_serversocket;
+
+  boost::asio::ssl::context m_cryptocontext;
+  using EncryptedSocket =
+    boost::asio::ssl::stream<boost::asio::posix::stream_descriptor>;
+  std::unique_ptr<EncryptedSocket> m_encryptedsocket;
+  /*std::variant<std::monostate,
+   boost::asio::posix::stream_descriptor,
+   boost::asio::ssl::stream<boost::asio::posix::stream_descriptor>>
+   m_altsocket;*/
+
   int m_fd_given_to_curl = -1;
   bool m_is_waiting_for_read = false;
   bool m_is_waiting_for_write = false;
