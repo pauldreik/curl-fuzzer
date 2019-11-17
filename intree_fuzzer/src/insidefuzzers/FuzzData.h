@@ -46,7 +46,8 @@ public:
     return ret;
   }
 
-  // returns a non-owning char pointer with random length and content-
+  // returns a non-owning char pointer with random length and content.
+  // guaranteed to be nonnull and null terminated.
   char *getzstring()
   {
     size_t len = getItem<std::uint16_t>();

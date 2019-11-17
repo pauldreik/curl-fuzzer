@@ -31,6 +31,12 @@ LLVMFuzzerTestOneInput(const uint8_t *rawdata, size_t rawsize)
   CURL *handle = curl_raii.handle();
 
   auto host = data.getzstring();
+
+  //avoid passing a zero-length hostname, doh_encode
+  //does not like that. see https://github.com/curl/curl/issues/4605
+  if(host[0]=='\0')
+      return 0;
+
   DNStype dnstype = [&]() {
     switch(data.getUChar() / 40) {
     case 0:
@@ -41,6 +47,8 @@ LLVMFuzzerTestOneInput(const uint8_t *rawdata, size_t rawsize)
       return DNS_TYPE_CNAME;
     case 3:
       return DNS_TYPE_AAAA;
+    case 4:
+      return DNS_TYPE_DNAME;
     default:
       // always return something valid
       return DNS_TYPE_A;
